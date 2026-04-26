@@ -1,0 +1,451 @@
+---
+title: "Supplementary Materials for: Accounting for the life history structure of fitness in tests for adaptive reproductive acceleration"
+author: "Stacy Rosenbaum & Anup Malani"
+#date: "`r Sys.Date()`"
+output:
+  bookdown::pdf_document2:
+    toc: true
+    number_sections: true
+    latex_engine: xelatex
+  bookdown::html_document2:
+    toc: true
+    toc_float: true
+    number_sections: true
+link-citations: true
+bibliography: references.bib
+header-includes:
+  - \usepackage{caption}
+  - \usepackage{float}
+  - \usepackage[section]{placeins}
+  - \usepackage{makecell}
+  - \captionsetup[table]{width=\linewidth, justification=centering, labelfont=bf, labelsep=colon}
+---
+
+```{css, echo=FALSE}
+h1 {
+  font-size: 1.8em;
+  margin-top: 1.5em;
+}
+h2 {
+  font-size: 1.3em;
+  margin-top: 1.2em;
+}
+h3 {
+  font-size: 1.1em;
+  margin-top: 1em;
+}
+p.caption {
+  font-size: 0.85em;
+}
+table {
+  font-size: 0.85em;
+}
+table caption {
+  font-size: 14px !important;
+  font-weight: bold;
+  caption-side: top;
+  text-align: left;
+  padding-bottom: 0.5em;
+  color: black;
+}
+.tinytable {
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+div.container {
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+}
+table td, table th {
+  padding: 2px 6px !important;
+  line-height: 1.2 !important;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+library(tidyverse)
+library(modelsummary)
+library(knitr)
+library(kableExtra)
+
+d <- read.csv("data/merged_analysis_data.csv")
+
+# Rescale population growth rate to per-thousand units (see README for details)
+d$pop_growth_two_years <- d$pop_growth_two_years * 1000
+```
+
+```{=latex}
+\renewcommand{\thetable}{S\arabic{table}}
+\renewcommand{\arraystretch}{1.3}
+\newpage
+```
+
+# Amboseli baboon data details
+
+The Amboseli Baboon Research Project (ABRP) has monitored wild baboons living in the Amboseli ecosystem of southern Kenya since 1971 [@Alberts_Altmann2012]. The population is made up of yellow baboons (*Papio cynocephalus*) with anubis (*P. anubis*) admixture from a neighboring, also wild population [@Walletal2016]. Each animal is individually identifiable by trained observers, who collect demographic and behavioral data on each social group multiple times per week year-round. This allows the project to capture fine-grained data on life history events, including births, infant loss, lifespans, and other metrics necessary for the analyses presented in this paper [@Alberts_Altmann2012]. Here we only use female data because it is much harder to measure reproductive pacing in males, and because male baboons disperse at sexual maturity and thus longitudinal data across adulthood is not typically available. 
+
+Most of the data used here were previously published by Weibel and colleagues [-@Weibeletal2020]. Briefly, age at first birth was defined as the subject female's age (in years) when she gave birth to her first live offspring. Interbirth intervals were defined as the number of days between consecutive live births; to count as two consecutive live births, the first offspring in the series needed to have survived to at least 70 weeks, which is approximately the age at which baboons are weaned [@Altmann1998]. The original paper (and thus this paper) excluded females whose measure (either age at first birth or interbirth interval) was greater than three standard deviations from the mean, in order to eliminate females with potential pathological problems. These exclusions represented a tiny fraction of the total number of measures (1.7% of possible age at first birth measurements, and 0.01% of individual IBIs). More details about the original data analysis, including data collection and summary methodology, can be found in Weibel et al. [-@Weibeletal2020].
+
+The one addition we made to the original data was moving from a categorical version of the rainfall variable (drought/no drought; see the section below for more details) to a continuous version. This is better-suited to our analyses for two reasons. First, it preserves information about the full range of rainfall variation the baboons actually experience. Second, the Taylor expansion regression requires a continuous predictor to generate meaningful squared and interaction terms. With categorical predictors, these terms collapse; e.g., a 0/1 variable squared is still 0/1, so the coefficients are not interpretable. 
+
+
+```{r rainfall-summary, include=FALSE}
+rain_values <- d$rain_first_year[!is.na(d$rain_first_year)]
+rain_n    <- length(rain_values)
+rain_mean <- mean(rain_values)
+rain_sd   <- sd(rain_values)
+rain_min  <- min(rain_values)
+rain_max  <- max(rain_values)
+```
+
+The ABRP team supplied us with the continuous rainfall data underlying the categorical data used in the original paper. These data are collected via daily monitoring of a rain gauge at the ABRP camp. Across the `r rain_n` females who appear in the data set, mean cumulative rainfall during the first year of life was `r round(rain_mean)`mm (SD = `r round(rain_sd)`mm), and ranged from `r round(rain_min)`mm to `r round(rain_max)`mm. These are very similar to the values reported for a slightly larger sample of females (n=295) in another recent Amboseli paper that relied on first-year-of-life rainfall data [@Rosenbaumetal2025], along with longitudinal precipitation data for Amboseli across time [@Southworthetal2026]. 
+
+```{=latex}
+\newpage
+```
+
+# Cumulative adversity in the Amboseli baboons
+
+While we focus specifically on rainfall during the first year of life in the main text, this is certainly not the only source of hardship young baboons experience. The Amboseli Baboon Research Project has identified six sources of early adversity for their study animals, which are described in detail in Table S1. Many prior papers on the baboons have examined the effects of these sources cumulatively [e.g., @Tungetal2016; @Weibeletal2020; @Rosenbaumetal2020; @Andersonetal2024], where each source is coded as a yes/no indicator (the animal in question did/did not experience that source). A baboon's cumulative adversity count is the number of "yes" responses, but because few baboons experience more than three sources, counts of 3+ are collapsed into a single category. This cumulative adversity approach is standard across the broader literature [reviewed for human studies in @McLaughlin_Sheridan2016].
+
+```{r table-s1-adversity-definitions}
+library(knitr)
+library(kableExtra)
+
+adversity_defs <- data.frame(
+  Source = c(
+    "Drought",
+    "High population density",
+    "Low maternal dominance rank",
+    "Low maternal social connectedness",
+    "Early maternal loss",
+    "Competing younger sibling"
+  ),
+  Definition = c(
+    "<200mm of cumulative rainfall during the subject's first year of life.",
+    "Number of adults of both sexes in the subject's group on the day the subject was born; coded as \"yes\" if group size fell in the largest quartile of the population distribution.",
+    "Ordinal dominance rank of the subject's mother in the month that the subject was born; coded as \"yes\" if the mother's rank fell in the lowest quartile of the population distribution.",
+    "Social connectedness (measured by grooming relationships) of a subject's mother to other adult females, calculated as the subject's mother's average connectedness value over the first two years of the subject's life. Coded as \"yes\" if the subject's mother fell in the lowest quartile of the population.",
+    "Death of the subject's mother before the subject turns 4 years old.",
+    "The subject had a sibling born less than 1.5 years after the subject was born; 1.5 years corresponds to the lowest quartile of interbirth intervals in the baboon population."
+  ),
+  check.names = FALSE
+)
+names(adversity_defs) <- c("Source of adversity", "Definition (from Tung et al. 2016)")
+
+kable(adversity_defs,
+      booktabs = TRUE,
+      caption = "Sources of early life adversity for Amboseli baboons.") %>%
+  kable_styling(latex_options = c("HOLD_position"), full_width = FALSE) %>%
+  column_spec(1, width = "1.5in") %>%
+  column_spec(2, width = "4.5in")
+```
+
+```{=latex}
+\newpage
+```
+
+## The reproduction–lifespan trade-off
+
+Here we present the regression results for the reproduction–lifespan trade-off analyses (i.e., the Taylor expansion regressions) but replace rainfall with cumulative early life adversity (Table S2; see Section 5.1.1 in the main text). Table S2 contains results with both lifespan and the re-arranged accounting model $(LRS - 0.5) \cdot IBI$ as the outcome variable. (The latter is equivalent to asking about the pacing–fitness trade-off.) Note that cumulative adversity is coded in the opposite direction from rainfall. Higher values indicate *more* adversity, so the predicted signs on $e$ and its interactions flip: under the reproductive acceleration hypothesis, coefficients from the regressions of $A$ on $e$ and $IBI$ on $e$, as well as $\lambda_{A \cdot e}$ and $\lambda_{IBI \cdot e}$, should all be negative rather than positive. Sample sizes are smaller in these analyses (n=61, versus n=99 in the main text) because not all females have complete cumulative adversity data. 
+
+Our conclusions are robust to this alternative choice of adversity measure. We again find no evidence for the reproductive acceleration hypothesis. The regression explains a moderate amount of lifespan variation ($R^2$ = 0.25), but the key interaction coefficients $\lambda_{A \cdot e}$ and $\lambda_{IBI \cdot e}$ are not statistically significant ($p$ > 0.30 for both; see Table S2, first column). Furthermore, the point estimates run in the opposite direction of the hypothesis prediction, suggesting that if anything, adversity steepens rather than flattens the reproduction–lifespan trade-off. We find a similar null result when we use $(LRS - 0.5) \cdot IBI$ as the outcome (second column of Table S2). The interaction coefficients are again non-significant ($p$ > 0.27).
+
+
+```{r table-s2-taylor-cumul}
+
+# Fit the two cumulative adversity Taylor expansion models (lifespan outcome and LRS outcome)
+taylor_data_cumul <- d %>%
+  filter(!is.na(lifespan_years) & !is.na(age_first_birth) &
+         !is.na(ibi_years) & !is.na(cumulative_adversity)) %>%
+  mutate(lrs_ibi = (lrs - 0.5) * ibi_years)
+
+# Lifespan outcome
+model_taylor_cumul <- lm(lifespan_years ~ age_first_birth + ibi_years + cumulative_adversity +
+                     I(age_first_birth^2) + I(ibi_years^2) + I(cumulative_adversity^2) +
+                     age_first_birth:ibi_years +
+                     age_first_birth:cumulative_adversity +
+                     ibi_years:cumulative_adversity,
+                   data = taylor_data_cumul)
+
+# (LRS - 0.5) * IBI outcome
+model_lrs_cumul <- lm(lrs_ibi ~ age_first_birth + ibi_years + cumulative_adversity +
+                     I(age_first_birth^2) + I(ibi_years^2) + I(cumulative_adversity^2) +
+                     age_first_birth:ibi_years +
+                     age_first_birth:cumulative_adversity +
+                     ibi_years:cumulative_adversity,
+                   data = taylor_data_cumul)
+
+tab_s2 <- modelsummary(
+  list(
+    "Lifespan" = model_taylor_cumul,
+    "(LRS − 0.5) · IBI" = model_lrs_cumul
+  ),
+  estimate = "{estimate}{stars} ({std.error})",
+  statistic = NULL,
+  stars = c('*' = 0.10, '**' = 0.05, '***' = 0.01),
+  gof_map = c("r.squared", "adj.r.squared", "nobs"),
+  coef_rename = c(
+    "age_first_birth" = "A",
+    "ibi_years" = "IBI",
+    "cumulative_adversity" = "Cumul. adversity",
+    "I(age_first_birth^2)" = "A²",
+    "I(ibi_years^2)" = "IBI²",
+    "I(cumulative_adversity^2)" = "Cumul. adversity²",
+    "age_first_birth:ibi_years" = "A × IBI",
+    "age_first_birth:cumulative_adversity" = "A × Cumul. adv.",
+    "ibi_years:cumulative_adversity" = "IBI × Cumul. adv."
+  ),
+  title = "Taylor expansion regression results using cumulative adversity",
+  notes = c("Standard errors in parentheses.",
+            "* p < 0.10, ** p < 0.05, *** p < 0.01"),
+  output = "kableExtra"
+)
+
+tab_s2 <- kable_styling(tab_s2, full_width = FALSE, latex_options = "HOLD_position")
+tab_s2 <- footnote(tab_s2,
+                   general = "In the second column, the coefficient on A is the Taylor expansion coefficient minus 1 (because the accounting substitution subtracts A from both sides).",
+                   general_title = "",
+                   threeparttable = TRUE,
+                   footnote_as_chunk = TRUE)
+tab_s2
+```
+
+```{r table-s3-summary-by-adversity, eval=FALSE, include=FALSE}
+summary_stats <- d %>%
+  filter(!is.na(cumulative_adversity)) %>%
+  group_by(cumulative_adversity) %>%
+  summarise(
+    `n (A)` = sum(!is.na(age_first_birth)),
+    `A mean` = round(mean(age_first_birth, na.rm = TRUE), 2),
+    `A sd` = round(sd(age_first_birth, na.rm = TRUE), 2),
+    `n (IBI)` = sum(!is.na(ibi_years)),
+    `IBI mean` = round(mean(ibi_years, na.rm = TRUE), 2),
+    `IBI sd` = round(sd(ibi_years, na.rm = TRUE), 2),
+    .groups = "drop"
+  ) %>%
+  rename(`Cumul. adversity` = cumulative_adversity)
+
+tab_s3 <- kable(summary_stats,
+                booktabs = TRUE,
+                caption = "Age at first birth (A) and interbirth interval (IBI) by cumulative adversity level") %>%
+  kable_styling(latex_options = c("HOLD_position"), full_width = FALSE) %>%
+  footnote(general = "The sample sizes for A and IBI differ because some females with cumulative adversity data lack IBI data (e.g., because they had only a single birth or no surviving IBIs).",
+           general_title = "Note:",
+           footnote_as_chunk = TRUE,
+           threeparttable = TRUE)
+tab_s3
+```
+
+```{=latex}
+\newpage
+```
+
+## Reproductive pacing and adversity
+
+```{r s4-pacing-cumul-models, include=FALSE}
+# Fit the cumulative adversity pacing models
+model_afb_cumul <- lm(age_first_birth ~ cumulative_adversity, data = d)
+model_ibi_cumul <- lm(ibi_years ~ cumulative_adversity, data = d)
+
+# Extract p-values for inline reporting
+p_afb_cumul <- summary(model_afb_cumul)$coefficients["cumulative_adversity", "Pr(>|t|)"]
+p_ibi_cumul <- summary(model_ibi_cumul)$coefficients["cumulative_adversity", "Pr(>|t|)"]
+```
+
+Here we execute the reproductive pacing analyses from Section 5.1.3 of the main text, but we replace rainfall with cumulative adversity (Table S3). As described above, cumulative adversity is coded in the opposite direction from rainfall (higher values indicate more adversity), so if the reproductive acceleration hypothesis is supported we would expect negative coefficients: more adversity should lead to earlier first births and shorter IBIs.
+
+We again find no evidence for reproductive acceleration. Cumulative adversity does not significantly predict age at first birth ($p$ = `r round(p_afb_cumul, 2)`) or interbirth interval ($p$ = `r round(p_ibi_cumul, 2)`), and the point estimates for both outcomes run in the opposite direction from the hypothesis prediction. 
+
+```{r table-s4-pacing-cumul}
+models_cumul <- list(
+  "Age at first birth" = model_afb_cumul,
+  "Interbirth interval" = model_ibi_cumul
+)
+
+library(kableExtra) #ended up using this b/c tinytable was causing too many placement issues
+
+tab_s4 <- modelsummary(
+  models_cumul,
+  estimate = "{estimate}{stars} ({std.error})",
+  statistic = NULL,
+  stars = c('*' = 0.10, '**' = 0.05, '***' = 0.01),
+  gof_map = c("r.squared", "nobs"),
+  coef_rename = c("cumulative_adversity" = "Cumul. adversity"),
+  title = "Reproductive pacing regression results for cumulative adversity",
+  notes = c("Standard errors in parentheses.",
+            "* p < 0.10, ** p < 0.05, *** p < 0.01"),
+  output = "kableExtra"
+)
+
+tab_s4 <- kable_styling(tab_s4, latex_options = c("HOLD_position"), full_width = FALSE)
+tab_s4
+```
+
+```{=latex}
+\newpage
+```
+
+# Omission of control variables in the reproductive pacing and adversity regressions
+
+Weibel and colleagues' [-@Weibeletal2020] analysis included two control variables in models of reproductive pacing: the population growth rate during the focal female's infancy (which captures population-level resource availability during early life) and the number of mature females in the group at the time of first birth (a proxy for within-group competition for resources at the onset of reproduction). We opted not to include these controls in our models for two reasons. First, they are not motivated by the optimization model we derive in the main text; including them would add complexity without a clear theoretical rationale. Second, population growth rate is conceptually related to our rainfall adversity measure, since both reflect resource availability, which could make interpretation less straightforward (though in practice the two are only weakly correlated: $r$ = 0.07). To verify that this choice does not affect our conclusions, we re-ran all of the reproductive pacing and adversity regressions, from both the main text and from the reproductive pacing and adversity section above, with both controls included. The adversity coefficients (either rainfall or cumulative adversity) are very similar in magnitude, sign, and significance whether or not controls are included. We therefore report the simpler models without controls in the main text.
+
+```{r control-variables-afb}
+controls <- c("pop_growth_two_years", "group_size")
+
+# Age at first birth models (with controls)
+model_cumul_afb_ctrl <- lm(
+  as.formula(paste("age_first_birth ~", paste(c(controls, "cumulative_adversity"), collapse = " + "))),
+  data = d
+)
+
+model_rain_afb_ctrl <- lm(
+  as.formula(paste("age_first_birth ~", paste(c(controls, "rain_first_year"), collapse = " + "))),
+  data = d
+)
+
+tab_afb_ctrl <- modelsummary(
+  list(
+    "Rainfall" = lm(age_first_birth ~ rain_first_year, data = d),
+    "Rainfall + ctrls" = model_rain_afb_ctrl,
+    "Cumul. adv." = lm(age_first_birth ~ cumulative_adversity, data = d),
+    "Cumul. adv. + ctrls" = model_cumul_afb_ctrl
+  ),
+  estimate = "{estimate}{stars} ({std.error})",
+  statistic = NULL,
+  stars = c('*' = 0.10, '**' = 0.05, '***' = 0.01),
+  gof_map = c("r.squared", "nobs"),
+  coef_rename = c(
+    "cumulative_adversity" = "Cumul. adversity",
+    "rain_first_year" = "Rainfall (first year)",
+    "pop_growth_two_years" = "Pop growth (×1000)",
+    "group_size" = "Group size (females)"
+  ),
+  title = "Reproductive pacing regression results with and without control variables for age at first birth",
+  # notes removed so table would fit on same page
+  # notes = c("Standard errors in parentheses.",
+  #           "* p < 0.10, ** p < 0.05, *** p < 0.01",
+  #           "Population growth rate rescaled (×1000) from original units."),
+  output = "kableExtra"
+)
+
+tab_afb_ctrl <- kable_styling(tab_afb_ctrl, latex_options = c("HOLD_position"), full_width = FALSE)
+tab_afb_ctrl
+```
+
+```{r control-variables-ibi}
+# IBI models (with controls)
+model_cumul_ibi_ctrl <- lm(
+  as.formula(paste("ibi_years ~", paste(c(controls, "cumulative_adversity"), collapse = " + "))),
+  data = d
+)
+
+model_rain_ibi_ctrl <- lm(
+  as.formula(paste("ibi_years ~", paste(c(controls, "rain_first_year"), collapse = " + "))),
+  data = d
+)
+
+tab_ibi_ctrl <- modelsummary(
+  list(
+    "Rainfall" = lm(ibi_years ~ rain_first_year, data = d),
+    "Rainfall + ctrls" = model_rain_ibi_ctrl,
+    "Cumul. adv." = lm(ibi_years ~ cumulative_adversity, data = d),
+    "Cumul. adv. + ctrls" = model_cumul_ibi_ctrl
+  ),
+  estimate = "{estimate}{stars} ({std.error})",
+  statistic = NULL,
+  stars = c('*' = 0.10, '**' = 0.05, '***' = 0.01),
+  gof_map = c("r.squared", "nobs"),
+  coef_rename = c(
+    "cumulative_adversity" = "Cumul. adversity",
+    "rain_first_year" = "Rainfall (first year)",
+    "pop_growth_two_years" = "Pop growth (×1000)",
+    "group_size" = "Group size (females)"
+  ),
+  title = "Reproductive pacing regression results with and without control variables for interbirth intervals",
+  notes = c("Standard errors in parentheses.",
+            "* p < 0.10, ** p < 0.05, *** p < 0.01",
+            "Population growth rate rescaled (×1000) from original units."),
+  output = "kableExtra"
+)
+
+tab_ibi_ctrl <- kable_styling(tab_ibi_ctrl, latex_options = c("HOLD_position"), full_width = FALSE)
+tab_ibi_ctrl
+```
+
+# Full Taylor expansion regression results
+
+Table S6 shows full Taylor expansion regression results when rainfall is used as the measure of early life adversity. This corresponds to the summary results reported in Section 5.1.1 of the main text. In the first column, lifespan is the outcome; in the second column, the outcome is the rearranged version of the accounting model $(LRS - 0.5) \cdot IBI$, which answers questions about reproductive pacing–fitness trade-offs.
+
+```{r table-s7-taylor-rainfall}
+# Fit rainfall Taylor expansion models
+taylor_data_rain <- d %>%
+  filter(!is.na(lifespan_years) & !is.na(age_first_birth) &
+         !is.na(ibi_years) & !is.na(rain_first_year)) %>%
+  mutate(lrs_ibi = (lrs - 0.5) * ibi_years)
+
+# Lifespan outcome
+model_taylor_rain <- lm(lifespan_years ~ age_first_birth + ibi_years + rain_first_year +
+                     I(age_first_birth^2) + I(ibi_years^2) + I(rain_first_year^2) +
+                     age_first_birth:ibi_years +
+                     age_first_birth:rain_first_year +
+                     ibi_years:rain_first_year,
+                   data = taylor_data_rain)
+
+# (LRS - 0.5) * IBI outcome
+model_lrs_rain <- lm(lrs_ibi ~ age_first_birth + ibi_years + rain_first_year +
+                     I(age_first_birth^2) + I(ibi_years^2) + I(rain_first_year^2) +
+                     age_first_birth:ibi_years +
+                     age_first_birth:rain_first_year +
+                     ibi_years:rain_first_year,
+                   data = taylor_data_rain)
+
+tab_s7 <- modelsummary(
+  list(
+    "Lifespan" = model_taylor_rain,
+    "(LRS − 0.5) · IBI" = model_lrs_rain
+  ),
+  estimate = "{estimate}{stars} ({std.error})",
+  statistic = NULL,
+  stars = c('*' = 0.10, '**' = 0.05, '***' = 0.01),
+  gof_map = c("r.squared", "adj.r.squared", "nobs"),
+  coef_rename = c(
+    "age_first_birth" = "A",
+    "ibi_years" = "IBI",
+    "rain_first_year" = "Rainfall",
+    "I(age_first_birth^2)" = "A²",
+    "I(ibi_years^2)" = "IBI²",
+    "I(rain_first_year^2)" = "Rainfall²",
+    "age_first_birth:ibi_years" = "A × IBI",
+    "age_first_birth:rain_first_year" = "A × Rainfall",
+    "ibi_years:rain_first_year" = "IBI × Rainfall"
+  ),
+  title = "Full Taylor expansion regression results using rainfall as the measure of early life adversity.",
+  notes = c("Standard errors in parentheses.",
+            "* p < 0.10, ** p < 0.05, *** p < 0.01"),
+  output = "kableExtra"
+)
+
+tab_s7 <- kable_styling(tab_s7, full_width = FALSE, latex_options = "HOLD_position")
+tab_s7 <- footnote(tab_s7,
+                   general = "In the second column, the coefficient on A is the Taylor expansion coefficient minus 1 (because the accounting substitution subtracts A from both sides).",
+                   general_title = "",
+                   threeparttable = TRUE,
+                   footnote_as_chunk = TRUE)
+tab_s7
+```
+
+# References {-}
+
+<!--
+# Session Info {-}
+-->
+
+```{r session-info, include=FALSE}
+sessionInfo()
+```
