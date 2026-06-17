@@ -1,6 +1,10 @@
 # macOS metadata
 .DS_Store
 
+# Revision working materials (reviewer comments, response letter drafts,
+# notes, submitted-version snapshots — kept local, not pushed)
+revisions/
+
 # R session files
 .Rhistory
 .RData
