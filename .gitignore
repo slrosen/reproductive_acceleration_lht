@@ -10,6 +10,7 @@ revisions/
 .RData
 .Rproj.user
 .Rapp.history
+Rplots.pdf
 
 # RMarkdown / knitr intermediate files
 *_cache/
@@ -20,6 +21,10 @@ revisions/
 # Bookdown
 _bookdown_files/
 _book/
+
+# Submission figure rasters (regenerate via export_figures.R; the PDFs are committed)
+figures/*.tiff
+figures/*.png
 
 # LaTeX build artifacts
 *.aux

@@ -1,6 +1,7 @@
 ---
 title: "Supplementary Materials for: Accounting for the life history structure of fitness in tests for adaptive reproductive acceleration"
 author: "Stacy Rosenbaum & Anup Malani"
+subtitle: "Philosophical Transactions of the Royal Society B"
 #date: "`r Sys.Date()`"
 output:
   bookdown::pdf_document2:
@@ -81,15 +82,16 @@ d$pop_growth_two_years <- d$pop_growth_two_years * 1000
 
 ```{=latex}
 \renewcommand{\thetable}{S\arabic{table}}
+\renewcommand{\thefigure}{S\arabic{figure}}
 \renewcommand{\arraystretch}{1.3}
 \newpage
 ```
 
-# Amboseli baboon data details
+# Amboseli baboon data details {#sec:supp-data}
 
 The Amboseli Baboon Research Project (ABRP) has monitored wild baboons living in the Amboseli ecosystem of southern Kenya since 1971 [@Alberts_Altmann2012]. The population is made up of yellow baboons (*Papio cynocephalus*) with anubis (*P. anubis*) admixture from a neighboring, also wild population [@Walletal2016]. Each animal is individually identifiable by trained observers, who collect demographic and behavioral data on each social group multiple times per week year-round. This allows the project to capture fine-grained data on life history events, including births, infant loss, lifespans, and other metrics necessary for the analyses presented in this paper [@Alberts_Altmann2012]. Here we only use female data because it is much harder to measure reproductive pacing in males, and because male baboons disperse at sexual maturity and thus longitudinal data across adulthood are not typically available. 
 
-Most of the data used here were previously published by Weibel and colleagues [-@Weibeletal2020]. Briefly, age at first birth was defined as the subject female's age (in years) when she gave birth to her first live offspring. Interbirth intervals were defined as the number of days between consecutive live births; to count as two consecutive live births, the first offspring in the series needed to have survived to at least 70 weeks, which is approximately the age at which baboons are weaned [@Altmann1998]. The original paper (and thus this paper) excluded females whose measure (either age at first birth or interbirth interval) was greater than three standard deviations from the mean, in order to eliminate females with potential pathological problems. These exclusions represented a tiny fraction of the total number of measures (1.7% of possible age at first birth measurements, and 0.01% of individual IBIs). More details about the original data analysis, including data collection and summary methodology, can be found in Weibel et al. [-@Weibeletal2020].
+Most of the data used here were previously published by Weibel and colleagues [-@Weibeletal2020]. Briefly, lifetime reproductive success was defined as the total number of live offspring the subject female gave birth to, and age at first birth was defined as her age (in years) when she gave birth to her first live offspring. Interbirth intervals were defined as the number of days between consecutive live births; to count as two consecutive live births, the first offspring in the series needed to have survived to at least 70 weeks, which is approximately the age at which baboons are weaned [@Altmann1998]. The original paper (and thus this paper) excluded females whose measure (either age at first birth or interbirth interval) was greater than three standard deviations from the mean, in order to eliminate females with potential pathological problems. These exclusions represented a tiny fraction of the total number of measures (1.7% of possible age at first birth measurements, and 0.01% of individual IBIs). More details about the original data analysis, including data collection and summary methodology, can be found in Weibel et al. [-@Weibeletal2020].
 
 The one addition we made to the original data was moving from a categorical version of the rainfall variable (drought/no drought; see the section below for more details) to a continuous version. This is better-suited to our analyses for two reasons. First, it preserves information about the full range of rainfall variation the baboons actually experience. Second, the Taylor expansion regression requires a continuous predictor to generate meaningful squared and interaction terms. With categorical predictors, these terms collapse; e.g., a 0/1 variable squared is still 0/1, so the coefficients are not interpretable. 
 
@@ -109,9 +111,108 @@ The ABRP team supplied us with the continuous rainfall data underlying the categ
 \newpage
 ```
 
-# Cumulative adversity in the Amboseli baboons
+# Scope of the accounting and optimization models {#sec:supp-scope}
 
-While we focus specifically on rainfall during the first year of life in the main text, this is certainly not the only source of hardship young baboons experience. The Amboseli Baboon Research Project has identified six sources of early adversity for their study animals, which are described in detail in Table S1. Many prior papers on the baboons have examined the effects of these sources cumulatively [e.g., @Tungetal2016; @Weibeletal2020; @Rosenbaumetal2020; @Andersonetal2024], where each source is coded as a yes/no indicator (the animal in question did/did not experience that source). A baboon's cumulative adversity count is the number of "yes" responses, but because few baboons experience more than three sources, counts of 3+ are collapsed into a single category. This cumulative adversity approach is standard across the broader literature [reviewed for human studies in @McLaughlin_Sheridan2016].
+## Extension of the accounting model to females with lifetime reproductive success <2
+
+The accounting model in Equation 4 of the main text contains an average interbirth interval ($IBI$) term, which is undefined for females with only a single birth. By construction, the model applies only to females with $LRS \geq 2$. Thus, females with $LRS = 0$ or $LRS = 1$ are not included in Figure 3 in the main text.
+
+However, the model could be extended to females with $LRS = 1$ by substituting a population-mean $IBI$ for the missing observed value. Starting from $L \approx A + (LRS - 0.5) \cdot IBI$, the rearranged form $LRS \approx (L - A) / IBI_{\text{pop}} + 0.5$ gives us an unbiased prediction *on average*, because the model's key assumption is that the time of survival after the final birth ($E$) averages $0.5 \cdot IBI$. Individual predictions will have a larger relative error than for $LRS \geq 2$ females, for two reasons. First, assigning the population-mean $IBI$ rather than the female's own (unknown) individual $IBI$ adds imputation noise that $LRS \geq 2$ females are not subject to. Second, the same absolute prediction error from individual deviation around the model's central assumption ($E \approx 0.5 \cdot IBI$) has the largest relative impact at $LRS = 1$, because $L - A$ is at its smallest there ($0.5 \cdot IBI$). This means that any given error is a larger fraction of $L - A$ itself. A female who dies shortly after her one birth receives a predicted $LRS$ of about 0.5, while a female who survives nearly a full $IBI$ without a second birth receives a prediction closer to 1.5. This is a much wider relative error than the analogous range at higher $LRS$: e.g., at $LRS$ = 5, the deviation changes the prediction from 4.5 to 5.5, which is only 20% of the target $LRS = 5$, instead of 100% when $LRS = 1$. The extension is therefore feasible, but would be expected to introduce substantial variance at the individual level.
+
+```{r lrs1-extension-setup, include=FALSE}
+fig2_subset <- d %>%
+  filter(!is.na(lrs) & !is.na(lifespan_years) &
+         !is.na(age_first_birth) & !is.na(ibi_years))
+ibi_pop <- mean(fig2_subset$ibi_years)
+
+fig2_pred <- fig2_subset %>%
+  mutate(lrs_pred = (lifespan_years - age_first_birth) / ibi_years + 0.5)
+
+lrs1 <- d %>%
+  filter(lrs == 1 & !is.na(lifespan_years) & !is.na(age_first_birth)) %>%
+  mutate(lrs_pred = (lifespan_years - age_first_birth) / ibi_pop + 0.5)
+```
+
+To test how the accounting model performs with an imputed $IBI$ for females where $LRS = 1$, we returned to the Weibel et al. [-@Weibeletal2020] data, which contains `r nrow(lrs1)` females with $LRS = 1$. Applying the rearranged equation with the population-mean $IBI$ (`r round(ibi_pop * 365.25)` days), the mean predicted $LRS$ for these females is `r sprintf("%.2f", mean(lrs1$lrs_pred))` (expected: 1.00), confirming that the extension to this additional subset of females is unbiased on average. Individual predictions range from `r sprintf("%.2f", min(lrs1$lrs_pred))` to `r sprintf("%.2f", max(lrs1$lrs_pred))`, with a standard deviation of `r sprintf("%.2f", sd(lrs1$lrs_pred))` (Figure \@ref(fig:figure-s1-lrs1-extension)).
+
+```{r figure-s1-lrs1-extension, fig.width=6, fig.height=4.5, out.width="55%", fig.align="center", fig.pos="H", fig.cap="Empirical illustration of the $LRS = 1$ extension of the accounting model. Orange circles show females with $LRS \\geq 2$ (n = 110, which is the same data subset used in Figure 3 of the main text). Blue triangles show values for the 19 females with $LRS = 1$, for whom predicted $LRS$ was computed using the rearranged accounting equation with a population-mean $IBI$. The blue line is the 1:1 fit line. The blue triangles cluster around an observed $LRS$ of 1 (by definition) with predicted values centered near 1 and spanning both sides of the fit line. This illustrates that the extension is unbiased on average but noisy for individual females."}
+ggplot() +
+  geom_point(data = fig2_pred, aes(x = lrs_pred, y = lrs),
+             color = "darkorange", alpha = 0.6, size = 2) +
+  geom_point(data = lrs1, aes(x = lrs_pred, y = lrs),
+             color = "darkblue", alpha = 0.5, size = 2.5, shape = 17) +
+  geom_abline(intercept = 0, slope = 1, linetype = "solid", color = "blue") +
+  labs(
+    x = "Accounting model equation ([(L - A)/IBI] + 0.5)",
+    y = "Observed lifetime reproductive success (LRS)"
+  ) +
+  xlim(0, 15) +
+  ylim(0, 15) +
+  theme_minimal() +
+  theme(axis.title = element_text(size = 12))
+```
+
+We also repeated the regression-based validation from §2.1 of the main text on this larger dataset. Table \@ref(tab:table-s7-accounting-extended) reports the same two specifications (linear and log forms of the accounting model) used in Table 1 of the main text, but using the combined sample of females with $LRS \geq 2$ and $LRS = 1$. In the linear version, the explained variance is the same as in Table 1 ($R^2$ = 0.98 in both samples), and the estimated coefficients on $L$ and $A$ are slightly closer to the values the accounting equation predicts (1 and $-1$, respectively). Unsurprisingly, the log specification does not perform as well: $R^2$ drops from 0.99 to 0.92. This is because for females where $LRS = 1$ both $\log(LRS - 0.5)$ and the imputed $\log(IBI)$ are constants that have only a single value. Thus, most of the within-group variation that the log specification relies on is absent. This is an expected cost of data imputation, rather than a problem with the accounting model itself.
+
+```{r table-s7-accounting-extended}
+# Build combined dataset: LRS >= 2 with own IBI, plus LRS = 1 with imputed IBI_pop
+repro_data_ext <- bind_rows(
+  fig2_subset,
+  lrs1 %>% mutate(ibi_years = ibi_pop)
+) %>%
+  mutate(
+    rl_pred          = (lrs - 0.5) * ibi_years,
+    lrs_adj_log      = log(lrs - 0.5),
+    lifespan_adj_log = log(lifespan_years - age_first_birth),
+    ibi_log          = log(ibi_years)
+  )
+
+# Same two models as main-text Table 1, no intercept
+model1_ext <- lm(rl_pred ~ lifespan_years + age_first_birth - 1, data = repro_data_ext)
+model2_ext <- lm(lrs_adj_log ~ lifespan_adj_log + ibi_log - 1, data = repro_data_ext)
+
+tab_s7_ext <- modelsummary(
+  list(
+    "(LRS-0.5)*IBI" = model1_ext,
+    "log(LRS-0.5)"  = model2_ext
+  ),
+  estimate  = "{estimate}{stars} ({std.error})",
+  statistic = NULL,
+  stars     = c('*' = 0.10, '**' = 0.05, '***' = 0.01),
+  gof_map   = c("r.squared", "nobs"),
+  coef_rename = c(
+    "lifespan_years"   = "L (Lifespan)",
+    "age_first_birth"  = "A (Age at first birth)",
+    "lifespan_adj_log" = "log(L - A)",
+    "ibi_log"          = "log(IBI)"
+  ),
+  title  = "Accounting regression results for extended sample including females where LRS = 1.",
+  notes  = c("Standard errors in parentheses.",
+             "* p < 0.10, ** p < 0.05, *** p < 0.01"),
+  output = "kableExtra"
+)
+
+tab_s7_ext <- kable_styling(tab_s7_ext, full_width = FALSE, latex_options = "HOLD_position")
+tab_s7_ext
+```
+
+In contrast to females with $LRS = 1$, females with $LRS = 0$ are outside the scope of the reproductive acceleration hypothesis itself, not just outside the model's mechanical domain (though they are also outside of that, given that they have neither an age at first birth nor an $IBI$). The hypothesis asks whether females who experience early adversity can improve their fitness by accelerating their reproductive schedule, which is only a relevant question for females who actually reproduce. Females who die before reproducing have zero direct fitness regardless of what reproductive schedule they would (hypothetically) have adopted. Thus, their absence from the model does not represent missing evidence about reproductive acceleration. If early adversity increases pre-reproductive mortality, leading to $LRS = 0$, that pattern would provide evidence for a different class of hypotheses: developmental constraints models, including the "silver spoon" hypothesis, which propose that early adversity compromises organisms in ways that cannot be compensated for later [@LeaRosenbaum2020; @Malanietal2023]. 
+
+## Generalization of the accounting model across species
+
+The accounting model generalizes to many other iteroparous species. Its assumption is that post-final-birth survival is half of a typical $IBI$, and there is no compelling reason to believe that this uniquely applies to baboons. In species where females produce multiple offspring per reproductive event, the most natural extension would be to redefine $LRS$ as the number of reproductive events (i.e., litters). While it could theoretically still use total offspring count instead, it would require that litter size be roughly stable across a female's lifetime. Important exceptions are humans and the small number of other mammalian species with substantial post-reproductive lifespans, such as killer whales and short-finned pilot whales [@JohnstoneCant2019]. For these species the assumption that females tend to die roughly mid-reproductive cycle breaks down, because they stop reproducing well before they die. However, in theory the model could be extended to such species if we had dependable estimates of the average post-reproductive lifespan to substitute for the $0.5 \cdot IBI$ approximation.
+
+## Generalization of the optimization model within species
+
+A separate scope condition applies to the optimization model rather than to the accounting model. The optimization model's predictions about how the optimum shifts with adversity (Equation 8) assume that there is a single common trade-off function $L(A, IBI, e)$ across females, where $e$ is some feature of the early life environment. In a hypothetical world where different individuals within populations have stable alternative reproductive tactics — i.e., distinct phenotypes with different underlying trade-off functions — these predictions would apply within each phenotype rather than across the population as a whole. We do not have evidence for such tactics in the Amboseli baboons, but this would be an important modification to consider when applying these methods to species where stable alternative tactics exist. 
+
+```{=latex}
+\newpage
+```
+
+# Cumulative adversity in the Amboseli baboons {#sec:supp-cumulative}
+
+While we focus specifically on rainfall during the first year of life in the main text, this is certainly not the only source of hardship young baboons experience. The Amboseli Baboon Research Project has identified six sources of early adversity for its study animals, which are described in detail in Table \@ref(tab:table-s1-adversity-definitions). Many prior papers on the baboons have examined the effects of these sources cumulatively [e.g., @Tungetal2016; @Weibeletal2020; @Rosenbaumetal2020; @Andersonetal2024], where each source is coded as a yes/no indicator (the animal in question did/did not experience that source). A baboon's cumulative adversity count is the number of "yes" responses, but because few baboons experience more than three sources, counts of 3+ are collapsed into a single category. This cumulative adversity approach is standard across the broader literature [reviewed for human studies in @McLaughlin_Sheridan2016].
 
 ```{r table-s1-adversity-definitions}
 library(knitr)
@@ -152,9 +253,9 @@ kable(adversity_defs,
 
 ## The reproduction–lifespan trade-off
 
-Here we present the regression results for the reproduction–lifespan trade-off analyses (i.e., the Taylor expansion regressions) but replace rainfall with cumulative early life adversity (Table S2; see Section 5.1.1 in the main text). Table S2 contains results with both lifespan and the re-arranged accounting model $(LRS - 0.5) \cdot IBI$ as the outcome variable. (The latter is equivalent to asking about the pacing–fitness trade-off.) Note that cumulative adversity is coded in the opposite direction from rainfall. Higher values indicate *more* adversity, so the predicted signs on $e$ and its interactions flip: under the reproductive acceleration hypothesis, coefficients from the regressions of $A$ on $e$ and $IBI$ on $e$, as well as $\lambda_{A \cdot e}$ and $\lambda_{IBI \cdot e}$, should all be negative rather than positive. Sample sizes are smaller in these analyses (n=61, versus n=99 in the main text) because not all females have complete cumulative adversity data. 
+Here we present the regression results for the reproduction–lifespan trade-off analyses (i.e., the Taylor expansion regressions) but replace rainfall (our environmental variable, $e$) with cumulative early life adversity (Table \@ref(tab:table-s2-taylor-cumul); see Section 5.1.1 in the main text). Table \@ref(tab:table-s2-taylor-cumul) contains results with both lifespan and the re-arranged accounting model $(LRS - 0.5) \cdot IBI$ as the outcome variable. (The latter is equivalent to asking about the pacing–fitness trade-off.) Note that cumulative adversity is coded in the opposite direction from rainfall. Higher values indicate *more* adversity, so the predicted signs on $e$ and its interactions flip: under the reproductive acceleration hypothesis, coefficients from the regressions of $A$ on $e$ and $IBI$ on $e$, as well as $\lambda_{A \cdot e}$ and $\lambda_{IBI \cdot e}$, should all be negative rather than positive. Sample sizes are smaller in these analyses (n=61, versus n=99 in the main text) because not all females have complete cumulative adversity data. 
 
-Our conclusions are robust to this alternative choice of adversity measure. We again find no evidence for the reproductive acceleration hypothesis. The regression explains a moderate amount of lifespan variation ($R^2$ = 0.25), but the key interaction coefficients $\lambda_{A \cdot e}$ and $\lambda_{IBI \cdot e}$ are not statistically significant ($p$ > 0.30 for both; see Table S2, first column). Furthermore, the point estimates run in the opposite direction of the hypothesis prediction, suggesting that if anything, adversity steepens rather than flattens the reproduction–lifespan trade-off. We find a similar null result when we use $(LRS - 0.5) \cdot IBI$ as the outcome (second column of Table S2). The interaction coefficients are again non-significant ($p$ > 0.27).
+Our conclusions are robust to this alternative choice of adversity measure. We again find no evidence for the reproductive acceleration hypothesis. The regression explains a moderate amount of lifespan variation ($R^2$ = 0.25), but the key interaction coefficients $\lambda_{A \cdot e}$ and $\lambda_{IBI \cdot e}$ are not statistically significant ($p$ > 0.30 for both; see Table \@ref(tab:table-s2-taylor-cumul), first column). Furthermore, the point estimates run in the opposite direction of the hypothesis prediction, suggesting that if anything, adversity steepens rather than flattens the reproduction–lifespan trade-off. We find a similar null result when we use $(LRS - 0.5) \cdot IBI$ as the outcome (second column of Table \@ref(tab:table-s2-taylor-cumul)). The interaction coefficients are again non-significant ($p$ > 0.27).
 
 
 ```{r table-s2-taylor-cumul}
@@ -258,7 +359,7 @@ p_afb_cumul <- summary(model_afb_cumul)$coefficients["cumulative_adversity", "Pr
 p_ibi_cumul <- summary(model_ibi_cumul)$coefficients["cumulative_adversity", "Pr(>|t|)"]
 ```
 
-Here we execute the reproductive pacing analyses from Section 5.1.3 of the main text, but we replace rainfall with cumulative adversity (Table S3). As described above, cumulative adversity is coded in the opposite direction from rainfall (higher values indicate more adversity), so if the reproductive acceleration hypothesis is supported we would expect negative coefficients: more adversity should lead to earlier first births and shorter IBIs.
+Here we execute the reproductive pacing analyses from Section 5.1.2 of the main text, but we replace rainfall with cumulative adversity (Table \@ref(tab:table-s4-pacing-cumul)). As described above, cumulative adversity is coded in the opposite direction from rainfall (higher values indicate more adversity), so if the reproductive acceleration hypothesis is supported we would expect negative coefficients: more adversity should lead to earlier first births and shorter IBIs.
 
 We again find no evidence for reproductive acceleration. Cumulative adversity does not significantly predict age at first birth ($p$ = `r round(p_afb_cumul, 2)`) or interbirth interval ($p$ = `r round(p_ibi_cumul, 2)`), and the point estimates for both outcomes run in the opposite direction from the hypothesis prediction. 
 
@@ -291,9 +392,9 @@ tab_s4
 \newpage
 ```
 
-# Omission of control variables in the reproductive pacing and adversity regressions
+# Omission of control variables in the reproductive pacing and adversity regressions {#sec:supp-controls}
 
-Weibel and colleagues' [-@Weibeletal2020] analysis included two control variables in models of reproductive pacing: the population growth rate during the focal female's infancy (which captures population-level resource availability during early life) and the number of mature females in the group at the time of first birth (a proxy for within-group competition for resources at the onset of reproduction). We opted not to include these controls in our models for two reasons. First, they are not motivated by the optimization model we derive in the main text; including them would add complexity without a clear theoretical rationale. Second, population growth rate is conceptually related to our rainfall adversity measure, since both reflect resource availability, which could make interpretation less straightforward (though in practice the two are only weakly correlated: $r$ = 0.07). To verify that this choice does not affect our conclusions, we re-ran all of the reproductive pacing and adversity regressions, from both the main text and from the reproductive pacing and adversity section above, with both controls included. The adversity coefficients (either rainfall or cumulative adversity) are very similar in magnitude, sign, and significance whether or not controls are included. We therefore report the simpler models without controls in the main text.
+Weibel and colleagues' [-@Weibeletal2020] analysis included two control variables in models of reproductive pacing: the population growth rate during the focal female's infancy (which captures population-level resource availability during early life) and the number of mature females in the group at the time of first birth (a proxy for within-group competition for resources at the onset of reproduction). We opted not to include these controls in our models for two reasons. First, they are not motivated by the optimization model we derive in the main text; including them would add complexity without a clear theoretical rationale. Second, population growth rate is conceptually related to our rainfall adversity measure, since both reflect resource availability, which could make interpretation less straightforward (though in practice the two are only weakly correlated: $r$ = 0.07). To verify that this choice does not affect our conclusions, we re-ran all of the reproductive pacing and adversity regressions, from both the main text and the reproductive pacing and adversity section above, with both controls included. The adversity coefficients (either rainfall or cumulative adversity) are very similar in magnitude, sign, and significance whether or not controls are included. We therefore report the simpler models without controls in the main text.
 
 ```{r control-variables-afb}
 controls <- c("pop_growth_two_years", "group_size")
@@ -378,9 +479,9 @@ tab_ibi_ctrl <- kable_styling(tab_ibi_ctrl, latex_options = c("HOLD_position"), 
 tab_ibi_ctrl
 ```
 
-# Full Taylor expansion regression results
+# Full Taylor expansion regression results {#sec:supp-taylor}
 
-Table S6 shows full Taylor expansion regression results when rainfall is used as the measure of early life adversity. This corresponds to the summary results reported in Section 5.1.1 of the main text. In the first column, lifespan is the outcome; in the second column, the outcome is the rearranged version of the accounting model $(LRS - 0.5) \cdot IBI$, which answers questions about reproductive pacing–fitness trade-offs.
+Table \@ref(tab:table-s7-taylor-rainfall) shows full Taylor expansion regression results when rainfall is used as the measure of early life adversity. This corresponds to the summary results reported in Section 5.1.1 of the main text. In the first column, lifespan is the outcome; in the second column, the outcome is the rearranged version of the accounting model $(LRS - 0.5) \cdot IBI$, which answers questions about reproductive pacing–fitness trade-offs. The third column reports a simple regression $L \sim e$ with no reproductive pacing variables included, which captures the total relationship between rainfall and lifespan. We report it for transparency and as the diagnostic discussed in the main text. The rainfall coefficient has the same sign as in the full Taylor expansion, indicating that including $A$ and $IBI$ in the structural model is not introducing the kind of bias that would arise if unobserved factors were jointly influencing both pacing and lifespan.
 
 ```{r table-s7-taylor-rainfall}
 # Fit rainfall Taylor expansion models
@@ -405,10 +506,15 @@ model_lrs_rain <- lm(lrs_ibi ~ age_first_birth + ibi_years + rain_first_year +
                      ibi_years:rain_first_year,
                    data = taylor_data_rain)
 
+# Simple L ~ rainfall (no pacing variables), reported as the total
+# rainfall-on-lifespan relationship per editor request
+model_simple_L_rain <- lm(lifespan_years ~ rain_first_year, data = taylor_data_rain)
+
 tab_s7 <- modelsummary(
   list(
-    "Lifespan" = model_taylor_rain,
-    "(LRS − 0.5) · IBI" = model_lrs_rain
+    "Lifespan (full)" = model_taylor_rain,
+    "(LRS − 0.5) · IBI" = model_lrs_rain,
+    "Lifespan (simple)" = model_simple_L_rain
   ),
   estimate = "{estimate}{stars} ({std.error})",
   statistic = NULL,
@@ -438,6 +544,10 @@ tab_s7 <- footnote(tab_s7,
                    threeparttable = TRUE,
                    footnote_as_chunk = TRUE)
 tab_s7
+```
+
+```{=latex}
+\newpage
 ```
 
 # References {-}

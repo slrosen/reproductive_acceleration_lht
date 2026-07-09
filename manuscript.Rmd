@@ -73,6 +73,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(tidyverse)
 library(knitr)        # For tables
 library(modelsummary) # For regression tables
+library(ggdag)        # For causal-structure DAGs
 
 figdir <- "figures"
 
@@ -92,7 +93,7 @@ d$pop_growth_two_years <- d$pop_growth_two_years * 1000
 
 # Abstract {-}
 
-A prominent developmental plasticity theory proposes that early life adversity accelerates life history trajectories so organisms can maximize fitness in challenging environments. Standard tests of this hypothesis rely on empirical predictions about observable life history variables (e.g., age at first birth), because the proposed internal processes cannot be directly measured. However, the observable proxies are themselves mechanically linked, and regressions that ignore this may conflate causal effects with mechanical relationships among proxies. Here, we develop theory that explicitly justifies some existing empirical tests but rejects others. We integrate an accounting model that incorporates age at first birth, interbirth intervals, and lifespan with an optimization model, to derive the mathematical form that tests of the hypothesis should take. We apply these tests to data from wild female baboons, using early life rainfall as an exogenous proxy for early adversity so that estimates can plausibly be interpreted causally. The accounting model explains >98% of the variation in lifetime reproductive success in these animals, but we find no evidence for the reproductive acceleration hypothesis. Our study illustrates the value of formal theory for causal inference in developmental plasticity research, where intertwined measurable variables may be obscured by strictly verbal hypotheses.
+A prominent developmental plasticity theory proposes that early life adversity accelerates life history trajectories so organisms can maximize fitness in challenging environments. Standard tests of this hypothesis rely on empirical predictions about observable life history variables (e.g., age at first birth), because the proposed internal processes cannot be directly measured. However, the observable proxies are themselves mechanically linked, and regressions that ignore this may conflate causal effects with mechanical relationships among proxies. Here, we develop theory that explicitly justifies some existing empirical tests but rejects others. We integrate an accounting model that incorporates age at first birth, interbirth intervals, and lifespan with an optimization model, to derive the mathematical form that tests of the hypothesis should take. We apply these tests to data from wild female baboons, using early life rainfall as an exogenous proxy for early adversity so that estimates can plausibly be interpreted causally. The accounting model explains >98% of the variation in lifetime reproductive success among females that reproduced. However, our theory-derived tests find no evidence for the reproductive acceleration hypothesis. Our study illustrates the value of formal theory for causal inference in developmental plasticity research, where intertwined measurable variables may be obscured by strictly verbal hypotheses.
 
 # Introduction
 
@@ -104,21 +105,21 @@ One potential phenotypic adjustment organisms might make is altering the timing 
 
 The reproductive acceleration hypothesis generates multiple testable predictions about the relationships among early life adversity, lifespans, reproductive pacing, and reproductive success. Variations of these predictions appear in myriad forms throughout the literature [e.g., @Chisholmetal1993; @Monaghan2008; @Ellisetal2009; @Haywardetal2012]. They are especially comprehensively assembled in Nettle and Bateson [-@Nettle_Bateson2015], which outlines several complementary empirical predictions designed to evaluate whether adversity accelerates reproduction; whether this acceleration is specifically adaptive for individuals who experience adversity; and whether the benefits accrue through the pathway of shortened lifespans. These predictions are as follows:
 
-**Prediction: Early life adversity ($e$) causes shorter lifespans ($L$)**
+**Prediction: Early life adversity causes shorter lifespans**
 
-To determine if this prediction is supported, **Test 1** regresses $L$ against $e$ (here, low $e$ means more adversity). A positive association between the two is consistent with two things: that adversity damages somatic state and is likely to lead to an earlier death, and that adversity-exposed organisms have a shorter window in which to maximize lifetime reproductive success. The relationship can be read two ways. Early adversity might lower lifespan directly, or indirectly through accelerated reproduction that carries somatic costs.
+To determine if this prediction is supported, **Test 1** regresses lifespan against some quality or state of the early life environment (we will assume that lower values mean more adversity). A positive association between the two is consistent with two things: that adversity damages somatic state and is likely to lead to an earlier death, and that adversity-exposed organisms have a shorter window in which to maximize lifetime reproductive success. The relationship can be read two ways. Early adversity might lower lifespan directly, or indirectly through accelerated reproduction that carries somatic costs.
 
-**Prediction: Early adversity causes accelerated reproduction ($p$)**
+**Prediction: Early adversity causes accelerated reproduction**
 
-To determine if this prediction is supported, **Test 2** regresses the putatively adaptive phenotype $p$ (earlier age at first birth, shorter interbirth intervals, or some combination of the two) against $e$. If the hypothesis is true, individuals who experienced early adversity should have accelerated reproduction relative to those who did not.
+To determine if this prediction is supported, **Test 2** regresses some putatively adaptive phenotype (e.g., earlier age at first birth, shorter interbirth intervals, or some combination of the two) against early life environment. If the hypothesis is true, individuals who experienced early adversity should have accelerated reproduction relative to those who did not.
 
-**Prediction: The fitness benefits ($LRS$) of accelerated reproduction depend on early adversity**
+**Prediction: The fitness benefits of accelerated reproduction depend on early adversity**
 
-To determine whether this prediction is supported, **Test 3** regresses lifetime reproductive success ($LRS$) against $e \times p$. A positive interaction would be evidence of an adaptive response to adversity; the absence of an interaction would imply that accelerating reproduction is simply beneficial in general.^[Some empirical studies also separately test a looser version of this prediction by regressing $LRS$ directly on $p$ with no interaction term, and thus asking whether acceleration has fitness benefits on average. This is a weaker claim than the hypothesis requires. The adaptive argument is that acceleration is particularly beneficial for individuals who experienced adversity, not that it is universally beneficial.]
+To determine whether this prediction is supported, **Test 3** regresses lifetime reproductive success ($LRS$) against the product of early life environment and phenotype. A positive interaction would be evidence of an adaptive response to adversity; the absence of an interaction would imply that accelerating reproduction is simply beneficial in general.^[Some empirical studies also separately test a looser version of this prediction by regressing $LRS$ directly on phenotype with no interaction term, and thus asking whether acceleration has fitness benefits on average. This is a weaker claim than the hypothesis requires. The adaptive argument is that acceleration is particularly beneficial for individuals who experienced adversity, not that it is universally beneficial.]
 
 **Prediction: The fitness benefits of accelerated reproduction depend on lifespan**
 
-**Test 4** parallels Test 3 but substitutes lifespan for adversity (i.e., it regresses $LRS$ against $L \times p$), predicated on the theory that shortened lifespans mediate the effect of adversity on fitness. A positive interaction would indicate that accelerating reproduction is particularly beneficial for individuals with shorter lifespans.
+**Test 4** parallels Test 3 but substitutes lifespan for adversity (i.e., it regresses $LRS$ against lifespan interacted with phenotype), predicated on the theory that shortened lifespans mediate the effect of adversity on fitness. A positive interaction would indicate that accelerating reproduction is particularly beneficial for individuals with shorter lifespans.
 
 This framework is attractive because it offers a full set of empirical predictions that can be evaluated using observational data. A paper on wild female baboons provided what is likely the most comprehensive empirical test to date [@Weibeletal2020], but individually, tests of these predictions have a much longer history. They have been tested either in part or in full across a wide range of taxa, with mixed results [reviewed in @Bonapersonaetal2019; @Dingetal2024].
 
@@ -132,15 +133,56 @@ Testing a causal claim requires solving two separate problems. The first is obse
 
 For reproductive acceleration, the purported proxy $z$ is the timing of life history events. If early adversity ($x$) causes some physiological adjustment ($y$) that results in a shift in energy allocation away from growth and maintenance and toward reproduction, this should produce a predictable pattern of lower age at first birth and shorter interbirth intervals. An important complication is that the observable variables involved in these tests (age at first birth, interbirth intervals, lifespan, and lifetime reproductive success) are themselves mechanically linked. Without a model that specifies those links explicitly, regressions risk conflating the causal effect of adversity with mechanical relationships among life history variables.
 
-The second problem that needs to be solved is exogeneity. The variation in variable $x$ must not be confounded by some quality of the organism itself. For this reason, ecological variables such as rainfall and temperature are useful, because organisms themselves do not influence how much it rains or how cold it is. Social variables (e.g., dominance rank, social isolation) are often of interest as well because of their strong correlations with health, reproduction, and longevity [@Snyder-Mackleretal2020], but it is challenging to separate out the effects of social environments themselves because they are likely to be at least in part determined by an organism's own qualities (e.g., its genes or behavior) [@Malanietal2023]. An unambiguous causal estimate requires environmental variation that is not influenced by the organism itself.
+The second problem that needs to be solved is exogeneity. The variation in $x$ must not be confounded by some quality of the organism itself. For this reason, ecological variables such as rainfall and temperature are useful, because organisms themselves do not influence how much it rains or how cold it is. Social variables (e.g., dominance rank, social isolation) are often of interest as well because of their strong correlations with health, reproduction, and longevity [@Snyder-Mackleretal2020], but it is challenging to separate out the effects of social environments themselves because they are likely to be at least in part determined by an organism's own qualities (e.g., its genes or behavior) [@Malanietal2023]. An unambiguous causal estimate requires environmental variation that is not influenced by the organism itself.
 
-Here, we use life history accounting and an evolutionary optimization model to derive what the predicted pattern of reproductive pacing should look like if the reproductive acceleration hypothesis is supported. We use this to motivate empirical tests that are directly evaluating the hypothesis rather than the mechanical relationships among life history variables. We then use our theory-derived tests to determine whether an exogenous proxy for early life adversity (rainfall, or lack thereof) causes reproductive acceleration in wild female savannah baboons monitored since 1972 by the Amboseli Baboon Research Project [@Alberts_Altmann2012]. This two-problem framing — observability first, then identification — gives a general template for causal inference in developmental plasticity research.
+Here, we use life history accounting and an evolutionary optimization model to derive what the predicted pattern of reproductive pacing should look like if the reproductive acceleration hypothesis is supported. We use this to motivate empirical tests that are directly evaluating the hypothesis rather than the mechanical relationships among life history variables. We then use our theory-derived tests to determine whether an exogenous proxy for early life adversity (rainfall, or lack thereof) causes reproductive acceleration in wild female savannah baboons monitored since 1971 by the Amboseli Baboon Research Project [@Alberts_Altmann2012]. This two-problem framing — observability first, then identification — gives a general template for causal inference in developmental plasticity research.
 
-# An accounting model of lifetime reproductive success
+# An accounting model of lifetime reproductive success {#sec:accounting-model}
 
-The internal, developmental response we ultimately care about that could causally connect early adversity to accelerated reproduction cannot be directly observed. We instead need to infer it from observable variables: age at first birth ($A$), interbirth intervals ($IBI$), lifespan ($L$), and lifetime reproductive success ($LRS$). However, we first need to understand how these observable variables relate to one another. In this section, we develop an accounting model that makes that relationship explicit.
+The internal, developmental response we ultimately care about that could causally connect early adversity to accelerated reproduction cannot be directly observed. We instead need to infer it from observable variables: age at first birth ($A$), interbirth intervals ($IBI$), lifespan ($L$), and lifetime reproductive success ($LRS$). It is useful to start by summarizing the broader causal structure we envision (Figure \@ref(fig:figure-causal-dag)). Some exogenous environmental variable $e$ affects an organism's lifespan directly (e.g., through early nutritional deficits that compromise adult somatic quality) and possibly indirectly through its effects on the pace of reproduction ($A$ and $IBI$), which themselves shape lifespan via reproduction–maintenance trade-offs. In our figure, the unobserved variable $U$ represents common causes of $A$, $IBI$, and $L$ that we do not directly measure — for example, prenatal effects, maternal effects, and other unobserved environmental factors. 
 
-Because we will ultimately execute our test of the reproductive acceleration hypothesis using data from baboons, we will rely on baboons for the examples, data, and discussion going forward. Consider a female baboon who has her first surviving offspring at age $A$, goes on to have $n$ more surviving offspring, and eventually dies at age $L$. Her $LRS$ is the total number of surviving offspring: $LRS = n + 1$. We will denote each of her individual interbirth intervals as $I_i$ and her average interbirth interval as $IBI$:
+(ref:causal-dag-cap) Hypothesized causal structure for our model: exogenous environmental variable $e$ affects observed age at first birth ($A$), length of interbirth intervals ($IBI$), and lifespan ($L$) both directly and indirectly via reproduction-maintenance trade-offs. $U$ (grey, unobserved) represents common causes of $A$, $IBI$, and $L$ that we do not directly measure. Lifetime reproductive success is not shown here; it is mechanically determined by $A$, $IBI$, and $L$ via the accounting model developed in Section \@ref(sec:accounting-model) (see also Figure \@ref(fig:figure-accounting-structure)).
+
+```{r figure-causal-dag, fig.width=4.5, fig.height=3.7, out.width="40%", fig.align="center", fig.cap="(ref:causal-dag-cap)"}
+arrow_style <- grid::arrow(length = grid::unit(10, "pt"),
+                           type = "closed", angle = 25)
+
+dag_causal <- dagify(
+  L ~ e + A + IBI + U,
+  A ~ e + U,
+  IBI ~ e + U,
+  latent = "U",
+  exposure = "e",
+  outcome = "L",
+  coords = list(
+    x = c(e = 0,   A = 1,   IBI = 1,   L = 2.5, U = 1.5),
+    y = c(e = 0,   A = 1.5, IBI = -1.5, L = 0,  U = 2.7)
+  )
+)
+
+td_causal <- tidy_dagitty(dag_causal)
+td_causal$data$latent <- td_causal$data$name == "U"
+
+p_causal <- ggplot(td_causal$data,
+                   aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_dag_edges(edge_colour = "grey25",
+                 arrow_directed = arrow_style) +
+  geom_dag_point(aes(fill = latent), shape = 21, size = 18,
+                 color = "black", stroke = 1) +
+  geom_dag_text(aes(label = name), color = "black",
+                size = 4.5, fontface = "italic") +
+  scale_fill_manual(values = c(`FALSE` = "white", `TRUE` = "grey80")) +
+  theme_dag() +
+  theme(legend.position = "none") +
+  expand_limits(y = c(-2, 3.2), x = c(-0.3, 2.8))
+
+p_causal
+ggsave(file.path(figdir, "causal_dag.pdf"), p_causal, width = 4.5, height = 3.7)
+```
+
+However, before we can address the causal question of interest, we first need to understand how the observable variables relate to one another. In this section, we develop an "accounting model" that makes that relationship explicit. It connects $A$, $IBI$, and $L$ to $LRS$ deterministically, on top of this causal structure.
+
+Because we will ultimately execute our test of the reproductive acceleration hypothesis using data from baboons, we will rely on baboons for the examples, data, and discussion going forward. Consider a female baboon who has her first offspring at age $A$, goes on to have $n$ more offspring, and eventually dies at age $L$. Her $LRS$ is the total number of offspring: $LRS = n + 1$. We will denote each of her individual interbirth intervals as $I_i$ and her average interbirth interval as $IBI$:
 
 \begin{equation}
 IBI = \frac{\sum_{i=1}^n I_i}{n}
@@ -170,7 +212,39 @@ LRS \approx \frac{L - A}{IBI} + \frac{1}{2}
 (\#eq:lrs-accounting)
 \end{equation}
 
-This is our basic reproductive accounting equation for $LRS$. Three quantities determine lifetime reproductive success: lifespan, age at first birth, and average interbirth interval. Note that these key variables make up the previously described tests for accelerated reproduction in Section \@ref(sec:existing-tests), and our accounting model specifies exactly how they should relate to one another.
+This is our basic reproductive accounting equation for $LRS$. Three quantities determine lifetime reproductive success: lifespan, age at first birth, and average interbirth interval. Note that these key variables are used in the previously described tests for accelerated reproduction in Section \@ref(sec:existing-tests), as well as in our causal visualization in Figure \@ref(fig:figure-causal-dag). Our accounting model specifies exactly how they should relate to one another. Figure \@ref(fig:figure-accounting-structure) illustrates the structural relationships encoded in Equation \@ref(eq:lrs-accounting): $LRS$ is mechanically determined by $A$, $IBI$, and $L$. These are accounting relationships, not causal claims, and are drawn with dashed arrows to distinguish them from the causal structure shown in Figure \@ref(fig:figure-causal-dag).
+
+(ref:accounting-dag-cap) Accounting structure of lifetime reproductive success. As in Equation \@ref(eq:lrs-accounting), $LRS$ is mechanically determined by age at first birth ($A$), interbirth interval ($IBI$), and lifespan ($L$). The dashed arrows indicate algebraic/accounting relationships, not causal claims.
+
+```{r figure-accounting-structure, fig.width=4, fig.height=3, out.width="40%", fig.align="center", fig.cap="(ref:accounting-dag-cap)"}
+arrow_style <- grid::arrow(length = grid::unit(10, "pt"),
+                           type = "closed", angle = 25)
+
+dag_acct <- dagify(
+  LRS ~ A + IBI + L,
+  coords = list(
+    x = c(A = 0,  IBI = 0, L = 0,  LRS = 1.6),
+    y = c(A = 1,  IBI = 0, L = -1, LRS = 0)
+  )
+)
+
+td_acct <- tidy_dagitty(dag_acct)
+
+p_acct <- ggplot(td_acct$data,
+                 aes(x = x, y = y, xend = xend, yend = yend)) +
+  geom_dag_edges(edge_colour = "grey25",
+                 edge_linetype = "dashed",
+                 arrow_directed = arrow_style) +
+  geom_dag_point(shape = 21, size = 18, fill = "white",
+                 color = "black", stroke = 1) +
+  geom_dag_text(aes(label = name), color = "black",
+                size = 4.5, fontface = "italic") +
+  theme_dag() +
+  expand_limits(y = c(-1.5, 1.5), x = c(-0.3, 1.9))
+
+p_acct
+ggsave(file.path(figdir, "accounting_dag.pdf"), p_acct, width = 4, height = 3)
+```
 
 ## Empirical validation of the accounting model {#sec:accounting-validation}
 
@@ -204,11 +278,13 @@ repro_data <- d %>%
   )
 ```
 
-It is important to empirically validate the assumption that our proposed accounting model explains $LRS$ in the real world, where there are many factors that might affect the $LRS$ of any given female. Therefore, we applied the equation to baboon life history data published in Weibel and colleagues [-@Weibeletal2020]. These data, from $n$=110 wild female baboons with complete reproductive histories, contain all of the necessary information to test the fit of our equation.
+It is important to empirically validate the assumption that our proposed accounting model explains $LRS$ in the real world, where there are many factors that might affect the $LRS$ of any given female. Therefore, we applied the equation to baboon life history data published by Weibel and colleagues [-@Weibeletal2020]. These data, from $n$=110 wild female baboons with complete reproductive histories, contain all of the necessary information to test the fit of our equation. Following Weibel and colleagues, $LRS$ is defined as the total number of live offspring a female gave birth to^[Weibel and colleagues reported qualitatively unchanged results when $LRS$ was alternatively defined as the number of offspring that survived to 70 weeks, the average age at weaning.], and $A$ is defined as her age at first live birth. $IBI$ is the mean number of days between consecutive live births in which the first offspring of the two survived to 70 weeks (the average age of weaning for Amboseli baboons [@Altmann1998]). Further details about the data can be found in Section S1 of the supplementary materials and in @Weibeletal2020.
 
-```{r figure1-lrs-scatter, fig.width=6, fig.height=4.5, out.width="70%", fig.align="center", fig.cap="Predicted versus actual lifetime reproductive success in female savannah baboons monitored by the Amboseli Baboon Research Project. Each orange dot is a single female with a completed, observed reproductive history (n=110). The x-axis shows the predicted lifetime reproductive success derived from the accounting model (Equation 4), and the y-axis plots observed female reproductive success. The solid blue line is the 1:1 fit line."}
+By construction, this validation only includes females who had at least one $IBI$ (i.e., gave birth to at least two live offspring). This is a necessary restriction since the accounting model includes $IBI$, which is undefined for females with only a single birth. We discuss this scope restriction, and how the model could and could not be extended to females with $LRS < 2$, in Section S2 of the supplementary materials.
+
+```{r figure1-lrs-scatter, fig.width=6, fig.height=4.5, out.width="70%", fig.align="center", fig.cap="Predicted versus actual lifetime reproductive success in female savannah baboons monitored by the Amboseli Baboon Research Project. Each orange dot is a single female with a completed, observed reproductive history and at least one measured interbirth interval (n=110). The x-axis shows the predicted lifetime reproductive success derived from the accounting model (Equation 4), and the y-axis plots observed female reproductive success. The solid blue line is the 1:1 fit line."}
 ggplot(repro_data, aes(x = lrs_adj_pred, y = lrs)) +
-  geom_point(color = "darkorange", size = 2) +
+  geom_point(color = "darkorange", alpha = 0.6, size = 2) +
   geom_abline(intercept = 0, slope = 1, linetype = "solid", color = "blue") +
   labs(
     x = "Accounting model equation ([(L - A)/IBI] + 0.5)",
@@ -225,7 +301,7 @@ ggplot(repro_data, aes(x = lrs_adj_pred, y = lrs)) +
 ggsave(file.path(figdir, "LRS_predictedLRS.pdf"), width = 8, height = 6)
 ```
 
-This simple accounting model does a remarkably good job of explaining the baboon data. If we plot females' actual $LRS$ against our mathematical approximation for $LRS$, there is a very strong correlation between the two (Figure 1). We can also demonstrate this by rearranging Equation \@ref(eq:lrs-accounting) so that lifespan ($L$) and age at first birth ($A$) appear on opposite sides, so that it can be estimated as a regression:
+This simple accounting model does a remarkably good job of explaining these baboon data. If we plot females' actual $LRS$ against our mathematical approximation for $LRS$, there is a very strong correlation between the two (Figure \@ref(fig:figure1-lrs-scatter)). We can also demonstrate this by rearranging Equation \@ref(eq:lrs-accounting) so that lifespan ($L$) and age at first birth ($A$) appear on opposite sides, so that it can be estimated as a regression:
 
 \begin{equation}
 (LRS - 0.5) \times IBI = L - A
@@ -267,27 +343,29 @@ tab1 <- tinytable::theme_tt(tab1, "latex",
 tab1
 ```
 
-The accounting model's fit to the baboon data is nearly exact. The regression coefficients are very close to what Equation \@ref(eq:lrs-accounting) predicts, and the model's $R^2$ is very high regardless of whether the data are untransformed ($R^2$ = 0.98) or log-transformed ($R^2$ = 0.99; Table 1). Thus, the accounting model explains virtually all of the variance in $LRS$. This confirms that at least in this sample of female baboons, $LRS$ is indeed mechanically determined by $(L, A, IBI)$ in the manner that is specified in the accounting model. This is useful because we now know that a regression involving $LRS$ and these life history variables must respect this basic mathematical structure.
+The accounting model's fit to these baboon data is nearly exact. The regression coefficients are very close to what Equation \@ref(eq:lrs-accounting) predicts, and the model's $R^2$ is very high regardless of whether the data are untransformed ($R^2$ = 0.98) or log-transformed ($R^2$ = 0.99; Table 1). Thus, the accounting model explains virtually all of the variance in $LRS$. This confirms that in this sample of female baboons, $LRS$ is indeed mechanically determined by $(L, A, IBI)$ in the manner that is specified in the accounting model. This is useful because we now know that a regression involving $LRS$ and these life history variables must respect this basic mathematical structure.
 
 # A biological optimization model
 
-Having shown that an accounting model of $LRS$ fits the data well, we now need a theory that connects early adversity to changes in reproductive pacing. The accounting model tells us what $LRS$ is, but not why females "choose" particular values of $A$ and $IBI$. For that, we need an optimization model.
+Having shown that an accounting model of $LRS$ fits the data well, we now need a theory that connects early adversity to changes in reproductive pacing. The accounting model tells us how $LRS$ is mechanically generated, but not why females "choose" particular values of $A$ and $IBI$. For that, we need an optimization model.
 
 ## The trade-off problem
 
 In any given environment, baboons should choose the optimal $A$ and $IBI$, because we expect natural selection to produce phenotypes that are fitness maximizing [@Parker_MaynardSmith1990]. Therefore, we first need to derive what that optimum looks like generically and then compare the optima in environments with and without early life adversity.
 
-Earlier $A$ and shorter $IBI$ would, all else being equal, benefit any female regardless of her early environment [e.g., @Nettle_Bateson2015; @Weibeletal2020]. If reproducing earlier or faster was costless, then every female would push reproductive pacing to the limits imposed by basic physiological constraints (e.g., $A$ below a certain age is impossible because the reproductive system is not yet functional). The fact that observed reproductive pacing usually sits above such physiological "floors" implies a cost. The obvious potential cost of an earlier $A$ and/or shorter $IBI$ (which both increase $LRS$) is a shorter lifespan (which decreases $LRS$), consistent with growth/reproduction/maintenance trade-offs that are fundamental to life history theory [@Stearns1992].
+Earlier $A$ and shorter $IBI$ would, all else being equal, benefit any female regardless of her early environment [@Nettle_Bateson2015; @Weibeletal2020]. If reproducing earlier or faster was costless, then every female would push reproductive pacing to the limits imposed by basic physiological constraints (e.g., $A$ below a certain age is impossible because the reproductive system is not yet functional). The fact that observed reproductive pacing usually sits above such physiological "floors" implies a cost. The obvious potential cost of an earlier $A$ and/or shorter $IBI$ (which both increase $LRS$) is a shorter lifespan (which decreases $LRS$), consistent with growth/reproduction/maintenance trade-offs that are fundamental to life history theory [@Stearns1992].
 
 ## Optimal reproductive pacing, holding environment constant
 
-We assume that organisms maximize $LRS$ as approximated by the accounting model (Equation \@ref(eq:lrs-accounting)), that they choose age at first birth ($A$) and the length of interbirth intervals ($IBI$), and that lifespan ($L$) depends on these choices.
+We assume that organisms maximize $LRS$ as approximated by the accounting model (Equation \@ref(eq:lrs-accounting)), that they choose $A$ and the length of $IBI$, and that lifespan depends on these choices.
 
-Suppose that lifespan is an increasing and concave function of both $A$ and $IBI$. That is, females who delay reproduction and space their births more widely live longer ($\partial L/\partial A > 0$, $\partial L/\partial IBI > 0$), but the lifespan gains from further delay or wider spacing diminish as the values of each increase ($\partial^2 L/\partial A^2 < 0$, $\partial^2 L/\partial IBI^2 < 0$). For simplicity, we also assume that the effect of $A$ on $L$ does not depend on $IBI$, and vice versa ($\partial^2 L/\partial A \partial IBI = 0$).
+Suppose that lifespan is an increasing and concave function of both $A$ and $IBI$. That is, females who delay reproduction and space their births more widely live longer ($\partial L/\partial A > 0$, $\partial L/\partial IBI > 0$), but the lifespan gains from further delay or wider spacing diminish as the values of each increase ($\partial^2 L/\partial A^2 < 0$, $\partial^2 L/\partial IBI^2 < 0$). For simplicity, we also assume that the effect of $A$ on lifespan does not depend on $IBI$, and vice versa ($\partial^2 L/\partial A \partial IBI = 0$).
 
-To illustrate the trade-off, we generated simulated data for 150 females using a concave (logarithmic) function relating lifespan to age and interbirth interval length, with normally distributed individual variation (Figure 2). In our simulation, each female has only a single $IBI$. We also extended the possible range for both variables relative to what is actually observed in baboons, because in practice the observed range, especially of $A$, is narrow enough that the curvature would be difficult to see.
+To illustrate the trade-off, we generated simulated data for 150 females using a concave (logarithmic) function relating lifespan to $A$ and $IBI$ length, with normally distributed individual variation (Figure \@ref(fig:figure2-tradeoff-simulation)). In our simulation, each female has only a single $IBI$. We also extended the possible range for both variables relative to what is actually observed in baboons, because in practice the observed range, especially of $A$, is narrow enough that the curvature would be difficult to see.
 
-```{r figure2-tradeoff-simulation, fig.width=10, fig.height=5, fig.cap="The assumed reproduction-lifespan trade-off. Each point represents a simulated female with a single interbirth interval. **Panel A:** Lifespan increases with age at first birth but with diminishing returns (concave). **Panel B:** Lifespan increases with longer interbirth intervals but with diminishing returns (concave). In both panels, the solid curve shows the underlying trade-off function, the orange points show individual simulated females with random variation, and vertical gray lines mark the observed range in the Amboseli baboon data. The x-axis ranges are extended beyond the observed range to make the concavity visible."}
+(ref:tradeoff-cap) The assumed reproduction-lifespan trade-off. Each point represents a simulated female with a single interbirth interval. **Panel A:** Lifespan increases with age at first birth but with diminishing returns (concave). **Panel B:** Lifespan increases with longer interbirth intervals but with diminishing returns (concave). In both panels, the solid curve shows the underlying trade-off function, the orange points show individual simulated females with random variation, and vertical gray lines mark the observed range in the Amboseli baboon data. The x-axis ranges are extended beyond the observed range to make the concavity visible.
+
+```{r figure2-tradeoff-simulation, fig.width=10, fig.height=5, out.width="80%", fig.align="center", fig.cap="(ref:tradeoff-cap)"}
 set.seed(42)
 n_sim <- 150
 
@@ -374,7 +452,7 @@ The left side of this equation is the lifespan gain from a longer $IBI$; the rig
 
 ## How early life adversity affects optimal choices {#sec:adversity-optimal}
 
-Our primary goal is to understand why early life adversity would cause an organism to change their choice of $A$ and/or $IBI$ length. Specifically, we ask: given that animals are already optimizing their choice of $A$ and $IBI$ (and thus their $LRS$) via evolutionary processes, what happens to the optimal choice when an animal experiences early adversity? We assume that lifespan depends not only on reproductive pacing but also on early life adversity, $e$ (where lower values of $e$ mean more adversity). In other words, we propose that $L(A, IBI, e)$. We make three assumptions:
+Our primary goal is to understand why early life adversity would cause an organism to change their choice of $A$ and/or $IBI$ length. Specifically, we ask: given that animals are already optimizing their choice of $A$ and $IBI$ (and thus their $LRS$) via evolutionary processes, what happens to the optimal choice when an animal experiences early adversity? We assume that lifespan depends not only on reproductive pacing but also on early life adversity, $e$ (where lower values of $e$ mean more adversity). In other words, we propose that $L(A, IBI, e)$, as depicted in Figure \@ref(fig:figure-causal-dag). We make three assumptions:
 
 1. Females who do not experience early life adversity live longer, all else being equal ($\partial L / \partial e > 0$).
 
@@ -382,7 +460,7 @@ Our primary goal is to understand why early life adversity would cause an organi
 
 3. Similarly, the lifespan benefit of lengthening interbirth intervals is smaller for females who faced early adversity ($\partial^2 L / \partial IBI \, \partial e > 0$).
 
-Assumptions 2 and 3 are key, as they say that early adversity flattens the trade-off curves depicted in Figure 2, reducing the lifespan-lengthening payoff of delayed or slower reproduction.
+Assumptions 2 and 3 are key, as they say that early adversity flattens the trade-off curves depicted in Figure \@ref(fig:figure2-tradeoff-simulation), reducing the lifespan-lengthening payoff of delayed or slower reproduction.
 
 Given the optimality conditions (Equations \@ref(eq:foc-age) and \@ref(eq:foc-ibi)), this implies that females who experienced adversity (lower $e$) should optimally choose a younger age at first birth ($A^*$) and shorter interbirth intervals ($IBI^*$):
 
@@ -395,17 +473,19 @@ In other words, adversity reduces the lifespan payoff of delaying reproduction, 
 
 ## Deriving a regression from the optimization model
 
-To test the above model empirically, we need to estimate the relationship between lifespan and its proposed determinants ($A$, $IBI$, and $e$) using a regression. The challenge is that we do not know the exact mathematical form of the lifespan trade-off function. We have hypothesized, based on tenets of life history theory, that it is increasing, concave, and flattened by adversity. Any empirical specification shapes regression results alongside the theory being tested, so we want a form that is flexible enough to let the theory do the work. We therefore approximate $L(A, IBI, e)$ using a second-order Taylor expansion. The Taylor expansion is flexible enough to capture these hypothesized properties if they are present in the data, without specifying the exact form of the trade-off:
+To test the above model empirically, we need to estimate the relationship between lifespan and its proposed determinants ($A$, $IBI$, and $e$) using a regression. The challenge is that we do not know the exact mathematical form of the lifespan trade-off function. We have hypothesized, based on tenets of life history theory, that it is increasing, concave, and flattened by adversity. The choice of empirical specification shapes regression results alongside the theory being tested, so we want a form that is flexible enough to let the theory do the work. We therefore approximate $L(A, IBI, e)$ using a second-order Taylor expansion:
 
 \begin{equation}
 L = \lambda_A A + \lambda_{IBI} IBI + \lambda_e e + \lambda_{AA} A^2 + \lambda_{IBI \cdot IBI} IBI^2 + \lambda_{ee} e^2 + \lambda_{A \cdot IBI} A \cdot IBI + \lambda_{A \cdot e} A \cdot e + \lambda_{IBI \cdot e} IBI \cdot e
 (\#eq:taylor-expansion)
 \end{equation}
 
-This equation can be estimated as a standard regression. Each $\lambda$ coefficient captures a different aspect of how lifespan responds to reproductive pacing and early adversity. The terms fall into three groups:
+A Taylor expansion approximates an unknown smooth function as a polynomial, in this case as a sum of linear, squared, and interaction terms of $A$, $IBI$, and $e$. The second-order version captures overall slopes, curvature, and pairwise interactions among the inputs, which together fit a wide range of underlying functional forms (e.g., logarithmic, exponential, power-law) without committing to a particular one in advance. The Taylor expansion is therefore flexible enough to capture the properties we have hypothesized for the trade-off if they are present in the data, without specifying their exact form. We use the second-order version because it is the simplest one that can capture the hypothesized diminishing returns and adversity-by-pacing interactions; going higher (cubic terms, three-way interactions) would estimate many more parameters than our sample size can support.
+
+Equation \@ref(eq:taylor-expansion) can be estimated as a standard regression. Each $\lambda$ coefficient captures a different aspect of how lifespan responds to reproductive pacing and early adversity. The terms fall into three groups:
 
 - **Direct effects** ($\lambda_A$, $\lambda_{IBI}$, $\lambda_e$): the baseline relationships — how lifespan changes with $A$, $IBI$, and $e$, respectively.
-- **Curvature terms** ($\lambda_{AA}$, $\lambda_{IBI \cdot IBI}$, $\lambda_{ee}$): these capture the diminishing returns illustrated in Figure 2. Negative values indicate that the lifespan gains from delaying age at first reproduction, or lengthening $IBI$, taper off.
+- **Curvature terms** ($\lambda_{AA}$, $\lambda_{IBI \cdot IBI}$, $\lambda_{ee}$): these capture the diminishing returns illustrated in Figure \@ref(fig:figure2-tradeoff-simulation). Negative values indicate that the lifespan gains from delaying age at first reproduction, or lengthening $IBI$, taper off.
 - **Interaction terms** ($\lambda_{A \cdot IBI}$, $\lambda_{A \cdot e}$, $\lambda_{IBI \cdot e}$): these terms capture how the effect of one variable depends on another.
 
 By the accounting model (Equation \@ref(eq:lrs-accounting)), $L - A \approx (LRS - 0.5) \cdot IBI$, so the same regression can also equivalently be estimated with $(LRS - 0.5) \cdot IBI$ as the outcome. This is asking whether adversity flattens the pacing–fitness trade-off rather than the pacing–lifespan trade-off.
@@ -420,7 +500,7 @@ In this section, we use the accounting and optimization models to revisit each o
 
 **Test 1: Relationship between lifespan and early life adversity**
 
-Original Test 1 has two possible interpretations, which are indistinguishable without the explicit functional form for lifespan developed in Equation \@ref(eq:taylor-expansion). The first interpretation is that adversity lowers lifespan directly ($\partial L / \partial e > 0$). The second is that adversity lowers lifespan indirectly, via somatic costs imposed by accelerated reproduction. The Taylor expansion nests both possibilities. The direct effect interpretation corresponds to $\lambda_e$ and $\lambda_{ee}$, and the indirect effect interpretation to $\lambda_{A \cdot e} > 0$ and $\lambda_{IBI \cdot e} > 0$, the interactions that capture trade-off flattening. The regression implementing Test 1 is therefore not simply $L \sim e$; it is the full Taylor expansion with $L$ as the outcome.
+Original Test 1 has two possible interpretations, which are indistinguishable without the explicit functional form for lifespan developed in Equation \@ref(eq:taylor-expansion). The first interpretation is that adversity lowers lifespan directly ($\partial L / \partial e > 0$). The second is that adversity lowers lifespan indirectly, via somatic costs imposed by accelerated reproduction. The Taylor expansion nests both possibilities. The direct effect interpretation corresponds to $\lambda_e$ and $\lambda_{ee}$, and the indirect effect interpretation to $\lambda_{A \cdot e} > 0$ and $\lambda_{IBI \cdot e} > 0$, the interactions that capture trade-off flattening. The regression implementing Test 1 is therefore not simply $L \sim e$; it is the full Taylor expansion with $L$ as the outcome. 
 
 **Test 2: Relationship between accelerated reproduction and early life adversity**
 
@@ -436,15 +516,15 @@ Original Test 4 should be zero, given the accounting model. It asks whether acce
 
 # Testing the reproductive acceleration hypothesis in baboons
 
-Here, we apply the new tests to data on wild female savannah baboons monitored by the Amboseli Baboon Research Project (ABRP), which has collected demographic and life history information on individually identified baboons on a near-daily basis since 1971 [@Alberts_Altmann2012]. Most of these data were previously published in Weibel and colleagues [-@Weibeletal2020]. They are useful because they contain information about all of the life history variables necessary to run our tests, as well as information about different sources of early life adversity that the ABRP has previously identified for baboons [@Tungetal2016]. More information about the baboons, the adversities they face, and the data that are specifically used for these analyses can be found in Sections 1 and 2 of the supplementary materials, as well as in Tung et al. [-@Tungetal2016] and Weibel et al. [-@Weibeletal2020].
+Here, we apply the new tests to data on wild female savannah baboons monitored by the Amboseli Baboon Research Project (ABRP), which has collected demographic and life history information on individually identified baboons on a near-daily basis since 1971 [@Alberts_Altmann2012]. Most of these data were previously published [@Weibeletal2020]. They are useful because they contain information about all of the life history variables necessary to run our tests, as well as information about different sources of early life adversity that the ABRP has previously identified for baboons [@Tungetal2016]. More information about the baboons, the adversities they face, and the data that are specifically used for these analyses can be found in Sections S1 and S3 of the supplementary materials, as well as in @Tungetal2016 and @Weibeletal2020.
 
-We will focus on one particular source of early adversity: the amount of rain experienced in the first year of life (as total mm/year). Lower rainfall is a proxy for greater adversity, because the baboons live in a highly seasonal environment where food availability is correlated with annual rainfall [@Adumaetal2018; @Rosenbaumetal2025]. Most prior papers on this population have operationalized early life rainfall as a binary variable; i.e., the baboon in question either did or did not experience drought when they were young. However, the ABRP generously provided us with the continuous rainfall data that underlies the binary drought indicator in Weibel and colleagues [-@Weibeletal2020], so we use this continuous measure here. The rest of our data are identical to what was used in the original publication.
+We focus on one particular source of early adversity: the amount of rain experienced in the first year of life (as total mm/year). Lower rainfall is a proxy for greater adversity, because the baboons live in a highly seasonal environment where food availability is correlated with annual rainfall [@Adumaetal2018; @Rosenbaumetal2025]. Most prior papers on this population have operationalized early life rainfall as a binary variable; i.e., the baboon in question either did or did not experience drought when they were young. However, the ABRP generously provided us with the continuous rainfall data that underlies the binary drought indicator in Weibel and colleagues' [-@Weibeletal2020] analysis, so we use this continuous measure here. Rainfall is measured daily at the ABRP field site using a single rain gauge and summed across each individual female's first year of life [@Weibeletal2020]. The rest of our data are identical to what was used in the original publication.
 
-We choose to focus on rainfall specifically because it is a source of adversity that is exogenous to the baboons, which makes it a useful source of variation for our causal-inference strategy^[Due to the field's considerable interest in the effects of cumulative adversity, where adversity is operationalized as the total number of sources of adversity an organism experienced when they were young, we also provide parallel analyses using each baboon's cumulative adversity count (ranging from 0-3+) as an alternative measure of early life adversity. These can be found in Section 2 of the supplementary materials. Results are qualitatively very similar to those reported for rainfall in the main text.]. No feature of the baboons themselves influences how much it rains, whereas other sources (e.g., maternal loss, being born to a low-ranking mother) are more likely connected to baboon genetics or behavior in ways that complicate interpretation [@Malanietal2023]. Since rainfall is randomly distributed across baboons, it approximates a natural experiment.
+We choose to focus on rainfall specifically because it is a source of adversity that is exogenous to the baboons, which makes it a useful source of variation for our causal-inference strategy^[Due to the field's considerable interest in the effects of cumulative adversity, where adversity is operationalized as the total number of sources of adversity an organism experienced when they were young, we also provide parallel analyses using each baboon's cumulative adversity count (ranging from 0-3+) as an alternative measure of early life adversity. These can be found in Section S3 of the supplementary materials. Results are qualitatively very similar to those reported for rainfall in the main text.]. No feature of the baboons themselves influences how much it rains, whereas other sources (e.g., maternal loss, being born to a low-ranking mother) are more likely connected to baboon genetics or behavior in ways that complicate interpretation [@Malanietal2023]. Since rainfall is randomly distributed across baboons, it approximates a natural experiment.
 
 It is important to clarify what this strategy does and does not deliver. Rainfall in the first year of life plausibly affects lifespan and reproductive pacing through several biological pathways (e.g., direct nutritional effects, density-mediated competition, maternal condition). The reproductive acceleration hypothesis is agnostic about which of these produces the adversity effect. What matters for the hypothesis is whether adversity, however it acts, reshapes the reproduction–lifespan trade-off. The Taylor expansion addresses this question: it separates whether rainfall affects lifespan directly ($\lambda_e$, $\lambda_{ee}$) from whether it flattens the pacing–lifespan trade-off ($\lambda_{A \cdot e}$, $\lambda_{IBI \cdot e}$), with the latter interactions being the structural "signature" that the optimization model predicts. This is a meaningful advance over a simple regression of pacing on adversity, which cannot distinguish the two. However, it does not give us mechanism-specific information about what biological pathways adversity is operating through.
 
-The theory in Equation \@ref(eq:comparative-statics) predicts positive coefficients on rainfall. Better environmental conditions in early life should raise optimal age at first birth ($A^*$) and lengthen optimal interbirth intervals ($IBI^*$), and should produce positive interaction coefficients ($\lambda_{A \cdot e}$ and $\lambda_{IBI \cdot e}$) in the Taylor expansion. Sample sizes for our analyses vary because not all data are available for all individual baboons, and are reported alongside the relevant results. We excluded control variables used in some models in Weibel and colleagues' original paper after verifying that their inclusion did not change our results (Supplementary materials Section 3).
+The theory in Equation \@ref(eq:comparative-statics) predicts positive coefficients on rainfall. Better environmental conditions in early life should raise optimal $A^*$ and lengthen optimal $IBI^*$, and should produce positive interaction coefficients ($\lambda_{A \cdot e}$ and $\lambda_{IBI \cdot e}$) in the Taylor expansion. Sample sizes for our analyses vary because not all data are available for all individual baboons, and are reported alongside the relevant results. We excluded control variables used in some models in Weibel and colleagues' original paper after verifying that their inclusion did not change our results (Supplementary materials Section S4). Note that in the Taylor expansion, $A$ and $IBI$ are inputs for lifespan (Figure \@ref(fig:figure-causal-dag)), not just variables we are including as controls to isolate a direct effect of $e$ on $L$. For transparency and to evaluate the overall relationship between rainfall and lifespan without modeling the trade-off function at all, we also report the results of a simple regression $L \sim e$ alongside the Taylor expansion results. This version does not rely on the assumption that there are no unobserved factors that jointly influence reproductive pacing and lifespan. 
 
 ## Results
 
@@ -463,11 +543,19 @@ model_taylor <- lm(lifespan_years ~ age_first_birth + ibi_years + rain_first_yea
                      age_first_birth:rain_first_year +
                      ibi_years:rain_first_year,
                    data = taylor_data)
+
+# Simple model L ~ rainfall (no pacing inputs), reported as the total
+# rainfall-on-lifespan relationship for transparency / per editor request.
+model_simple_L <- lm(lifespan_years ~ rain_first_year, data = taylor_data)
+rain_sd_lifespan <- sd(taylor_data$rain_first_year)
+simple_L_sd_effect_years <- coef(model_simple_L)["rain_first_year"] * rain_sd_lifespan
 ```
 
 We find no evidence that rainfall in the first year of life flattens the reproduction–lifespan trade-off in the Amboseli baboons. We estimate Equation \@ref(eq:taylor-expansion) with lifespan as the outcome and test the key coefficients $\lambda_{A \cdot e}$ and $\lambda_{IBI \cdot e}$. The model explains a modest amount of lifespan variation ($R^2$ = 0.12, n = `r nobs(model_taylor)`), but the coefficients on the adversity-by-pacing interactions are not statistically significant ($p$ > 0.30 for both $\lambda_{A \cdot e}$ and $\lambda_{IBI \cdot e}$).
 
-We find a similar null result when we reframe the question in terms of $LRS$ rather than lifespan. Under the accounting equation, asking whether adversity flattens the pacing–lifespan trade-off is algebraically equivalent to asking whether it flattens the pacing–fitness trade-off, so we can swap $(LRS - 0.5) \cdot IBI$ for lifespan as the regression outcome without changing the underlying biological question. The interaction terms $\lambda_{A \cdot e}$ and $\lambda_{IBI \cdot e}$ are non-significant ($p$ > 0.43). Full regression results for the lifespan and $LRS$ models are reported in Table S6 in the supplementary materials.
+We find a similar null result when we reframe the question in terms of $LRS$ rather than lifespan. Under the accounting equation, asking whether adversity flattens the pacing–lifespan trade-off is algebraically equivalent to asking whether it flattens the pacing–fitness trade-off, so we can swap $(LRS - 0.5) \cdot IBI$ for lifespan as the regression outcome without changing the underlying biological question. The interaction terms $\lambda_{A \cdot e}$ and $\lambda_{IBI \cdot e}$ are non-significant ($p$ > 0.43). Full regression results for the lifespan and $LRS$ models are reported in Table S7 in the supplementary materials.
+
+A simple $L \sim e$ regression that does not include any life history pacing variables also shows no significant effect of rainfall on lifespan ($\beta$ = 0.006, $p$ = 0.15, $n$ = `r nobs(model_simple_L)`), and has the same positive sign observed in the Taylor expansion (Table S7). This is important because a sign reversal between the two models would indicate that the rainfall coefficient obtained from the Taylor expansion was being affected by unobserved factors that influence both reproductive pacing and lifespan; we find no evidence that this is the case. 
 
 ```{r test3-accounting-taylor, include=FALSE}
 # Substitute Taylor expansion into accounting model
@@ -487,15 +575,20 @@ model_test3 <- lm(lrs_ibi ~ age_first_birth + ibi_years + rain_first_year +
 ### Reproductive pacing and adversity
 
 ```{r test2-fit-models, include=FALSE}
+# Rescale rainfall to per-standard-deviation units so Table 2 coefficients are legible.
+# In per-mm units both the coefficient and its SE round to 0.000; rescaling by a
+# constant leaves t-stats, p-values, and stars unchanged (only the display scale changes).
+  rain_sd_mm <- sd(d$rain_first_year, na.rm = TRUE)
+  d$rain_sd_units <- d$rain_first_year / rain_sd_mm
+
 # Age at first birth model
-  model_afb_rain <- lm(age_first_birth ~ rain_first_year, data = d)
+  model_afb_rain <- lm(age_first_birth ~ rain_sd_units, data = d)
 
 # IBI model
-  model_ibi_rain <- lm(ibi_years ~ rain_first_year, data = d)
+  model_ibi_rain <- lm(ibi_years ~ rain_sd_units, data = d)
 
 # Effect size for prose: 1 SD of rainfall → change in age at first birth (in days)
-  rain_sd_mm    <- sd(d$rain_first_year, na.rm = TRUE)
-  afb_effect_days <- abs(coef(model_afb_rain)["rain_first_year"] * rain_sd_mm * 365.25)
+  afb_effect_days <- abs(coef(model_afb_rain)["rain_sd_units"] * 365.25)
 
 # Use the real baboon IBI distribution
   ibi_mean_days <- mean(d$ibi_years, na.rm = TRUE) * 365.25
@@ -510,7 +603,7 @@ model_test3 <- lm(lrs_ibi ~ age_first_birth + ibi_years + rain_first_year +
 
 ```
 
-Our test of the relationship between reproductive pacing and early life adversity provides evidence *against* the reproductive acceleration hypothesis (Table 2). Females who experienced more rain during their first year of life reproduced earlier than females who experienced less rain ($p$ = 0.002), which is the opposite of the direction predicted by Equation \@ref(eq:comparative-statics). A one standard deviation increase in rainfall (~`r round(rain_sd_mm)` mm) corresponds to a ~`r round(afb_effect_days)`-day decrease in age at first birth. Given that the mean interbirth interval in the baboon data is 678 days, this translates to an expected ~0.07 additional offspring over the course of a reproductive lifespan. The rainfall-on-interbirth interval coefficient is also the opposite sign of the prediction, but this relationship was not statistically significant ($p$ > 0.19).
+Our test of the relationship between reproductive pacing and early life adversity does not find support for the reproductive acceleration hypothesis (Table 2). Females who experienced more rain during their first year of life reproduced earlier than females who experienced less rain ($p$ = 0.002), which is the opposite of the direction predicted by Equation \@ref(eq:comparative-statics). A one standard deviation increase in rainfall (~`r round(rain_sd_mm)` mm) corresponds to a ~`r round(afb_effect_days)`-day decrease in age at first birth. Given that the mean $IBI$ in the baboon data is 678 days, this translates to an expected ~0.07 additional offspring over the course of a reproductive lifespan. The relationship between rainfall and $IBI$ runs in the same wrong direction: females who experienced more rain had ~14-day *shorter* (rather than longer) $IBI$s per standard-deviation increase in rainfall, although this relationship was not statistically significant ($p$ = 0.20).
 
 ```{r test2-regressions}
 # Display rainfall results only; cumulative adversity results are in the supplement
@@ -525,7 +618,7 @@ tab <- modelsummary(
   statistic = NULL,
   stars = c('*' = 0.10, '**' = 0.05, '***' = 0.01),
   gof_map = c("r.squared", "nobs"),
-  coef_rename = c("rain_first_year" = "Rainfall"),
+  coef_rename = c("rain_sd_units" = "Rainfall (per SD, 122 mm)"),
   title = "Reproductive pacing and rainfall regression results",
   notes = c("Standard errors in parentheses.", "* p < 0.10, ** p < 0.05, *** p < 0.01"),
   output = "tinytable"
@@ -537,26 +630,30 @@ tab <- tinytable::style_tt(tab, fontsize = 0.8)
 tab <- tinytable::theme_tt(tab, "latex",
                             outer = "note{*}={font=\\footnotesize}",
                             inner = "rowsep=1pt")
+tab <- tinytable::theme_tt(tab, "placement", latex_float = "H")
 tab
 ```
 
+
 # Discussion
 
-Testing reproductive acceleration — or any developmental plasticity hypothesis of similar form — requires solving two distinct problems. The first problem, observability, arises whenever the outcome is an internal phenotypic adjustment that cannot be directly assayed. When this occurs, tests must use theory-justified, observable proxies. Our accounting and optimization models together show precisely how reproductive pacing ($A$, $IBI$) can act as that proxy, with directional signs and mathematical forms specified by the theory. The reproductive acceleration hypothesis as a case study highlights the hazards of relying on verbal models instead of explicit theoretical justification. We risk testing predictions that do not actually align with our hypotheses, clouding our ability to arrive at the right answer.
+Testing reproductive acceleration — or any developmental plasticity hypothesis of similar form — requires solving two distinct problems. The first problem, observability, arises whenever the outcome is an internal phenotypic adjustment that cannot be directly assayed. When this occurs, tests must use theory-justified, observable proxies. Our accounting and optimization models together show precisely how reproductive pacing variables ($A$, $IBI$) can act as that proxy, with directional signs and mathematical forms specified by the theory. The reproductive acceleration hypothesis as a case study highlights the hazards of relying on verbal models instead of explicit theoretical justification. We risk testing predictions that do not actually align with our hypotheses, clouding our ability to arrive at the right answer.
 
-The second problem is identification. Even with a good, theoretically-grounded proxy, credible causal claims require exogenous variation in the variable of interest. Here, we used rainfall during the first year of life to provide that variation, since it is the least-confounded available proxy for early life environmental conditions experienced by wild baboons. Purely predictive associations between life history variables and non-exogenous sources of adversity (e.g., dominance rank, maternal condition) risk conflating the effect of adversity itself with the effect of "selecting in" to adversity because of the confounding effects of genes and behavior. Confounding can never be entirely eliminated when studying wild animals. However, we can make meaningful progress towards reliable, if cautious, causal inference by explicitly laying out the proposed relationships between all three links in the chain: the causal variable(s) of interest, the proxies we can actually measure, and outcomes like lifespan and fitness that are critical for understanding evolutionary processes. Just as importantly, we need to be clear about where the links are missing or weak, and draw conclusions accordingly.
+The second problem is identification. Even with a good, theoretically grounded proxy, credible causal claims require exogenous variation in the variable of interest. Here, we used rainfall during the first year of life to provide that variation, since it is the least-confounded available proxy for early life environmental conditions experienced by wild baboons. Purely predictive associations between life history variables and non-exogenous sources of adversity (e.g., dominance rank, maternal condition) risk conflating the effect of adversity itself with the effect of "selecting in" to adversity because of the confounding effects of genes and behavior. Confounding can never be entirely eliminated when studying wild animals. However, we can make meaningful progress towards reliable, if cautious, causal inference by explicitly laying out the proposed relationships between all three links in the chain: the causal variable(s) of interest, the proxies we can actually measure, and outcomes like lifespan and fitness that are critical for understanding evolutionary processes. Just as importantly, we need to be clear about where the links are missing or weak, and draw conclusions accordingly.
 
-The Amboseli baboon data provide no evidence for the reproductive acceleration hypothesis, corroborating findings from an earlier paper [@Weibeletal2020]. Under our framework (i.e., the accounting model paired with the optimization model), reproductive acceleration would generate positive interaction coefficients indicating that early life adversity flattens the reproduction–lifespan trade-off. We find no evidence of this. In the limited instances where the point estimates from our models were meaningfully different than zero, they ran counter to the predictions of the reproductive acceleration hypothesis. Adversity *steepened* the trade-off curve, instead of flattening it. Our findings join a growing body of work questioning the association between early adversity and reproductive acceleration, on both theoretical and empirical grounds [e.g., @Mooradetal2019; @Andre_Rousset2020; @DelGiudice2020; @Frankenhuis_Gopnik2023].
+The Amboseli baboon data provide no evidence for the reproductive acceleration hypothesis, corroborating findings from an earlier paper [@Weibeletal2020]. Under our framework (i.e., the accounting model paired with the optimization model), reproductive acceleration would generate positive interaction coefficients indicating that early life adversity flattens the reproduction–lifespan trade-off. We find no evidence of this. In the limited instances where the point estimates from our models were meaningfully different than zero, they ran counter to the predictions of the reproductive acceleration hypothesis. Adversity *steepened* the trade-off curve, instead of flattening it. 
+
+Our findings join a growing body of work questioning the association between early adversity and reproductive acceleration for both theoretical and empirical reasons [e.g., @Mooradetal2019; @Andre_Rousset2020; @DelGiudice2020; @Frankenhuis_Gopnik2023]. On theoretical grounds, the null result we report is consistent with what life history theory predicts for a species like baboons. For accelerated reproduction to be adaptive, the fitness costs of an earlier death must be outweighed by the benefits of reproducing earlier or faster [@Stearns1992]. This is most plausible in species where adults typically only reproduce once, and maternal care does not extend beyond lactation. Neither of these is true for baboons, or other long-lived, iteroparous mammals with extended maternal care. In species like these, a female who dies while she is still caring for dependent young leaves behind offspring who are themselves unlikely to survive [@Zippleetal2021]. Such offspring make up a larger proportion of total lifetime reproductive success for short-lived than for long-lived females. The relative fitness cost of dying with dependent young is therefore higher, not lower, for females who have short lives. Recent formal modeling demonstrates that when maternal and offspring fitness are closely coupled, there is selection for longer lives and slower reproduction, not the reverse [@ZippleReevePeniston2024]. Our null result is therefore consistent with theoretically grounded expectations.
 
 While we did not find results in the predicted direction, we did find a plausibly causal effect of early life environment on reproductive pacing (again, consistent with Weibel and colleagues' [-@Weibeletal2020] earlier analysis). Females who experienced more rain in their first year of life began reproducing earlier; there was a ~45-day reduction in age at first birth per standard-deviation increase in rainfall. The most parsimonious explanation is that early life resource abundance accelerates physical development, so earlier first births simply reflect faster maturation rather than more complicated, strategic adjustments of reproductive timing [@Kuzawaetal2025]. Further bolstering this interpretation, this effect is unlikely to have significant fitness implications given that on average it should amount to only an additional ~7% of one offspring.
 
-Our analyses have several limitations. First, we make no claim that the Taylor expansion is the true mathematical form of the lifespan-reproduction trade-off. It is useful because it provides a flexible approximation that is consistent with the optimization model's structural assumptions. But while it is locally accurate near the center of the data, it may miss curvature that is visible only at more extreme values of $A$ or $IBI$. The narrow observed range of $A$ in the available baboon data limits our power to detect trade-off flattening, if it exists. Second, while it is true that first year rainfall is exogenous to baboon behavior, it plausibly affects lifespan, body condition, reproductive pacing, and fitness through multiple pathways that our analyses cannot distinguish. Finally, the Amboseli baboons are only one population, and empirical results from any single population are never conclusive. It would be useful to run these same tests on data from other long-lived mammal species, as well as species with meaningfully different suites of life history characteristics.
+Our analyses have several limitations. First, we make no claim that the Taylor expansion is the true mathematical form of the lifespan-reproduction trade-off. It is useful because it provides a flexible approximation that is consistent with the optimization model's structural assumptions. But while it is locally accurate near the center of the data, it may miss curvature that is visible only at more extreme values of $A$ or $IBI$. Two factors limit our power to detect trade-off flattening if it exists: the narrow observed range of $A$ in the available baboon data, and the relatively modest sample size available for our Taylor expansion (n=99). Second, while it is true that first year rainfall is exogenous to baboon behavior, it plausibly affects lifespan, body condition, reproductive pacing, and fitness through multiple pathways that our analyses cannot distinguish. Finally, it would be especially useful to run these tests on species with meaningfully different life history characteristics (e.g., species in which most adults reproduce only once or in which maternal care is limited or absent), since these are conditions under which the reproductive acceleration hypothesis could in principle hold.
 
 Sharpening causal claims in developmental plasticity research — and in ecology and evolution more broadly — requires both more rigorous theoretical specification and a wider empirical toolkit. Even when we cannot execute best-case tests of causality, there are mathematical steps we can take to improve the legitimacy of causal claims. In our analyses, for example, it is a step in the right direction that we can separate out direct effects of early adversity on lifespan, versus effects that operate through trade-offs with reproductive pacing. However, no single approach is enough on its own. Taking advantage of natural experiments [e.g., @Petrulloetal2024; @Siracusaetal2025], giving more weight to empirical findings that capitalize on exogenous variation, doing cross-population comparisons, and whenever possible performing experimental manipulations on wild or quasi-wild populations [e.g., @Dantzeretal2022; @Zippleetal2024] are all approaches that can help us retain strong external validity while making strides towards solving causal puzzles.
 
 # Acknowledgements
 
-The authors would like to thank Zach Laubach, Jonas Wahl, Laura Dee, and Wei Perng for inviting us to participate in this special issue. We are very grateful to the members of the Amboseli Baboons Research Project (ABRP), especially Chelsea Weibel, Beth Archie, Susan Alberts, and Jenny Tung, for sharing their data and for their advice and comments on early versions of the paper. The data used in this analysis were generated by the ABRP; funding information for the ABRP is available at https://amboselibaboons.nd.edu/acknowledgements/. This research was supported by the University of Michigan and the Barbara J. and B. Mark Fried Fund at the University of Chicago Law School.
+The authors would like to thank Zach Laubach, Jonas Wahl, Laura Dee, and Wei Perng for inviting us to participate in this special issue, as well as three anonymous reviewers for their helpful feedback. We are very grateful to the members of the Amboseli Baboons Research Project (ABRP), especially Chelsea Weibel, Beth Archie, Susan Alberts, and Jenny Tung, for sharing their data and for their advice and comments on early versions of the paper. The data used in this analysis were generated by the ABRP; funding information for the ABRP is available at https://amboselibaboons.nd.edu/acknowledgements/. This research was supported by the University of Michigan and the Barbara J. and B. Mark Fried Fund at the University of Chicago Law School.
 
 # Data and code availability
 
@@ -564,6 +661,6 @@ All data and code needed to replicate these analyses can be found at <https://gi
 
 # GenAI use statement
 
-We used Claude Code to help translate Stata code to R, clean and debug code, insert equation and section cross-referencing, create an outline for the supplementary materials, clean and alphabetize our .bib file, copy edit the text, and create our README file.
+We used Claude Code to help translate Stata code to R, clean and debug code, insert equation, figure, and section cross-referencing, create an outline for the supplementary materials, clean and alphabetize our .bib file, copy edit the text, and create our README file.
 
 # References {-}
