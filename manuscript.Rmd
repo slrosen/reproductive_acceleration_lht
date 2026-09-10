@@ -1,11 +1,13 @@
 ---
 title: "Accounting for the life history structure of fitness in tests for adaptive reproductive acceleration"
 author: |
-  | Stacy Rosenbaum^1\*^ & Anup Malani^2,3\*^^[The authors contributed equally to this work]
+  | Stacy Rosenbaum^1\*^ & Anup Malani^2,3^^[The authors contributed equally to this work. Please direct correspondence to stacy.rosenbaum@northwestern.edu.]
   |
   | ^1^Department of Anthropology, University of Michigan
   | ^2^University of Chicago Law School
   | ^3^National Bureau of Economic Research
+  |
+  | Accepted at *Philosophical Transactions of the Royal Society B*. DOI: [10.1098/rstb.2025.0479](https://doi.org/10.1098/rstb.2025.0479)
 bibliography: references.bib
 link-citations: true
 output:
@@ -18,7 +20,9 @@ output:
 header-includes:
   - \usepackage[section]{placeins}
   - \usepackage{lineno}
-  - \AtBeginDocument{\linenumbers}
+  - \AtBeginDocument{\nolinenumbers}
+  - \usepackage{caption}
+  - \captionsetup{labelfont=bf, font=small, singlelinecheck=false}
 ---
 
 ```{css, echo=FALSE}
@@ -90,6 +94,7 @@ d$pop_growth_two_years <- d$pop_growth_two_years * 1000
 \SetTblrInner[talltblr]{rowsep=1pt}
 \SetTblrInner[longtblr]{rowsep=1pt}
 ```
+\vspace*{-2em}
 
 # Abstract {-}
 

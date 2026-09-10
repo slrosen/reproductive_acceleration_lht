@@ -1,7 +1,10 @@
 ---
 title: "Supplementary Materials for: Accounting for the life history structure of fitness in tests for adaptive reproductive acceleration"
 author: "Stacy Rosenbaum & Anup Malani"
-subtitle: "Philosophical Transactions of the Royal Society B"
+subtitle: |
+  |
+  | Accepted at *Philosophical Transactions of the Royal Society B*.
+  | [10.1098/rstb.2025.0479](https://doi.org/10.1098/rstb.2025.0479)
 #date: "`r Sys.Date()`"
 output:
   bookdown::pdf_document2:
